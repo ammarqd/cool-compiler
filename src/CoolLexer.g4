@@ -31,4 +31,6 @@ EQ_OPERATOR                 : '=' ;
 ASSIGN_OPERATOR 	        : '<-';
 RIGHTARROW                  : '=>';
 
+CLASS : [cC][lL][aA][sS][sS];
+
 ERROR : . ;
