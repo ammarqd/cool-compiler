@@ -1,2 +1,2 @@
 # Cool-Compiler
-A Compiler for the COOL programming language.
+A Compiler for the Cool programming language.
