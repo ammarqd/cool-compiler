@@ -59,22 +59,24 @@ ESAC : [eE][sS][aA][cC];
 NEW : [nN][eE][wW];
 ISVOID : [iI][sS][vV][oO][iI][dD];
 
-TRUE : [tT][rR][uU][eE];
-FALSE : [fF][aA][lL][sS][eE];
+TRUE : [t][rR][uU][eE];
+FALSE : [f][aA][lL][sS][eE];
 
 TYPE : [A-Z][a-zA-Z0-9_]*;
-ID : [a-zA-Z_][a-zA-Z0-9_]*;
+ID : [a-zA-Z][a-zA-Z0-9_]*;
 
 /* Literals */
 
 INTEGER : [0-9]+;
-STRING : '"' (ESC | ~["\\])* '"';
+STRING : '"' ( '\\' ('b' | 't' | 'n' | 'f' | '"' |) | ~[\u0000] )* '"' ;
+
 
 /* Whitespace and comments */
+
 WHITESPACE : (' ' | '\n' | '\r' | '\t' | '\u000B')+ -> skip;
+COMMENT_LINE : '--' ~[\r\n]* -> skip;
 COMMENT_BLOCK : '(*' .*? '*)' -> skip;
-COMMENT_LINE : '--' -> skip;
-ESC : '\\';
+NESTED_COMMENT : '(*' ( NESTED_COMMENT | .)*? '*)' -> skip;
 
 /* Catch-all for unexpected characters */
 
