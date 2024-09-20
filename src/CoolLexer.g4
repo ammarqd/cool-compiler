@@ -55,7 +55,7 @@ OBJECTID : [a-z]CHAR*;
 fragment CHAR : [a-zA-Z0-9_];
 
 /* Int Literals */
-INT : DIGIT+;
+INT_CONST : DIGIT+;
 fragment DIGIT : [0-9];
 
 /* String Literals */
@@ -65,18 +65,19 @@ STR_TEXT : (~[\r\n"\u0000\\])+ -> more;
 STR_ESC : ('\\' [bftnr"\\\r\n])+ -> more;
 NULL_STRING : '\u0000'
 { setText("String contains null character."); }
--> type(ERROR), popMode;
+-> type(ERROR);
 UNTERMINATED_STRING : '\n'
 { setText("Unterminated string constant"); }
 -> type(ERROR), popMode;
 
 EOF_STRING : EOF
 { setText("EOF in string constant"); }
--> type(ERROR), popMode;
+-> type(ERROR);
 
 ESC_NULL : '\\\u0000'
 { setText("String contains escaped null character."); }
--> type(ERROR), popMode;
+-> type(ERROR);
+
 STR_CONST : '"' -> popMode;
 
 mode DEFAULT_MODE;
@@ -90,9 +91,9 @@ END_COMMENT: '*)' -> skip, popMode;
 COMMENT_TEXT: . -> skip;
 BEGIN_INNER_COMMENT: '(*' -> skip, pushMode(COMMENT_MODE);
 
-EOF_COMMENT : EOF
+EOF_COMMENT : '\n'?EOF
 { setText("EOF in comment"); }
--> type(ERROR), popMode;
+-> type(ERROR);
 
 mode DEFAULT_MODE;
 
@@ -100,7 +101,7 @@ UNMATCHED_PAREN : '*)'
 { setText("Unmatched *)"); }
 -> type(ERROR);
 
-WHITESPACE : (' ' | '\n' | '\r' | '\t' | '\u000B')+ -> skip;
+WHITESPACE : (' ' | '\n' | '\r' | '\t' | '\u000B' | '\f' )+ -> skip;
 
 /* Catch-all for unexpected characters */
 ERROR : . ;
