@@ -50,21 +50,34 @@ TRUE : [t][rR][uU][eE];
 FALSE : [f][aA][lL][sS][eE];
 
 /* Identifiers and Types */
-TYPE : [A-Z][a-zA-Z0-9_]*;
-ID : [a-z][a-zA-Z0-9_]*;
+TYPEID : [A-Z]CHAR*;
+OBJECTID : [a-z]CHAR*;
+fragment CHAR : [a-zA-Z0-9_];
 
-/* Literals */
+/* Int Literals */
 INT : DIGIT+;
 fragment DIGIT : [0-9];
+
 /* String Literals */
-BEGIN_STRING        : '"' -> pushMode(STRING_MODE);
+BEGIN_STRING : '"' -> pushMode(STRING_MODE), more;
 mode STRING_MODE;
-STRING_TEXT         : ~[\\\n\u0000"];  // Match any character except \, newline, and "
-STRING_ESCAPE       : '\\' [btnf\\"];  // Handle escape sequences for b, t, n, f, r, ", ', \
-END_STRING          : '"' -> popMode;
+STR_TEXT : (~[\r\n"\u0000\\])+ -> more;
+STR_ESC : ('\\' [bftnr"\\\r\n])+ -> more;
+NULL_STRING : '\u0000'
+{ setText("String contains null character."); }
+-> type(ERROR), popMode;
 UNTERMINATED_STRING : '\n'
 { setText("Unterminated string constant"); }
 -> type(ERROR), popMode;
+
+EOF_STRING : EOF
+{ setText("EOF in string constant"); }
+-> type(ERROR), popMode;
+
+ESC_NULL : '\\\u0000'
+{ setText("String contains escaped null character."); }
+-> type(ERROR), popMode;
+STR_CONST : '"' -> popMode;
 
 mode DEFAULT_MODE;
 
@@ -77,7 +90,15 @@ END_COMMENT: '*)' -> skip, popMode;
 COMMENT_TEXT: . -> skip;
 BEGIN_INNER_COMMENT: '(*' -> skip, pushMode(COMMENT_MODE);
 
+EOF_COMMENT : EOF
+{ setText("EOF in comment"); }
+-> type(ERROR), popMode;
+
 mode DEFAULT_MODE;
+
+UNMATCHED_PAREN : '*)'
+{ setText("Unmatched *)"); }
+-> type(ERROR);
 
 WHITESPACE : (' ' | '\n' | '\r' | '\t' | '\u000B')+ -> skip;
 
