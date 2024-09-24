@@ -24,7 +24,6 @@ MULT_OPERATOR       : '*';
 DIV_OPERATOR        : '/';
 INT_COMPLEMENT_OPERATOR     : '~';
 LESS_OPERATOR               : '<';
-GREAT_OPERATOR              : '>';
 LESS_EQ_OPERATOR            : '<=';
 EQ_OPERATOR                 : '=' ;
 ASSIGN_OPERATOR 	        : '<-';
