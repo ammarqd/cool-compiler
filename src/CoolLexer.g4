@@ -71,17 +71,17 @@ UNTERMINATED_STRING : '\n'
 { setText("Unterminated string constant"); }
 -> type(ERROR), popMode;
 
+NULL_STRING : '\u0000' .*? EOF
+{ setText("String contains null character."); }
+-> type(ERROR), popMode;
+
+ESC_NULL : '\\\u0000' .*? EOF
+{ setText("String contains escaped null character."); }
+-> type(ERROR), popMode;
+
 EOF_STRING : EOF
 { setText("EOF in string constant"); }
--> type(ERROR);
-
-NULL_STRING : '\u0000'
-{ setText("String contains null character."); }
--> type(ERROR);
-
-ESC_NULL : '\\\u0000'
-{ setText("String contains escaped null character."); }
--> type(ERROR);
+-> type(ERROR), popMode;
 
 STR_CONST : '"' -> popMode;
 
