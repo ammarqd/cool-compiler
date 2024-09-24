@@ -4,6 +4,7 @@
 lexer grammar CoolLexer;
 @members {
     int commentLevel = 0;
+    int stringLength = 0;
 }
 
 /* Punctuation */
@@ -61,20 +62,20 @@ INT_CONST : DIGIT+;
 fragment DIGIT : [0-9];
 
 /* String Literals */
-BEGIN_STRING : '"' -> pushMode(STRING_MODE), more;
+BEGIN_STRING : '"' { stringLength = 0; } -> pushMode(STRING_MODE), more;
 mode STRING_MODE;
-STR_TEXT : (~[\r\n"\u0000\\]) -> more;
-STR_ESC : ('\\' [bftnr"\\\r\n]) -> more;
+STR_TEXT : (~[\r\n"\u0000\\]) { stringLength++; } -> more;
+STR_ESC : ('\\' [bftnr"\\\r\n]) { stringLength++; } -> more;
 
 UNTERMINATED_STRING : '\n'
 { setText("Unterminated string constant"); }
 -> type(ERROR), popMode;
 
-NULL_STRING : '\u0000' .*? EOF
+NULL_STRING : '\u0000' .*? ('"' | '\n')
 { setText("String contains null character."); }
 -> type(ERROR), popMode;
 
-ESC_NULL : '\\\u0000' .*? EOF
+ESC_NULL : '\\\u0000' .*? ('"' | '\n')
 { setText("String contains escaped null character."); }
 -> type(ERROR), popMode;
 
@@ -82,7 +83,12 @@ EOF_STRING : EOF
 { setText("EOF in string constant"); }
 -> type(ERROR), popMode;
 
-STR_CONST : '"' -> popMode;
+STR_CONST : '"' {
+    if (stringLength > 1024) {
+        setText("String constant too long");
+        setType(ERROR);
+    }
+}-> popMode;
 
 mode DEFAULT_MODE;
 
