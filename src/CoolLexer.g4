@@ -57,6 +57,9 @@ TYPEID : [A-Z]CHAR*;
 OBJECTID : [a-z]CHAR*;
 fragment CHAR : [a-zA-Z0-9_];
 
+/* WHITESPACE */
+WHITESPACE : (' ' | '\n' | '\f' | '\r' | '\t' | '\u000B')+ -> skip;
+
 /* Int Literals */
 INT_CONST : DIGIT+;
 fragment DIGIT : [0-9];
@@ -64,8 +67,9 @@ fragment DIGIT : [0-9];
 /* String Literals */
 BEGIN_STRING : '"' { stringLength = 0; } -> pushMode(STRING_MODE), more;
 mode STRING_MODE;
-STR_TEXT : (~[\r\n"\u0000\\]) { stringLength++; } -> more;
-STR_ESC : ('\\' [bftnr"\\\r\n]) { stringLength++; } -> more;
+STR_TEXT : ~[\r\n"\u0000\\] { stringLength++; } -> more;
+STR_ESC : '\\' [bftnr"\\\r\n] { stringLength++; } -> more;
+STR_INVALID: '\\' ~[bftnr"\\\r\n] { stringLength++; } -> more;
 
 UNTERMINATED_STRING : '\n'
 { setText("Unterminated string constant"); }
@@ -92,14 +96,14 @@ STR_CONST : '"' {
 
 mode DEFAULT_MODE;
 
-/* Whitespace and Comments */
+/* Line and Block Comments */
 
 LINE_COMMENT  : '--' ~[\r\n]* -> skip;
 BEGIN_COMMENT: '(*' { commentLevel++; } -> pushMode(COMMENT_MODE), skip;
 
 mode COMMENT_MODE;
 
-EOF_COMMENT : '\n' EOF
+EOF_COMMENT : . EOF
 { setText("EOF in comment"); }
 -> type(ERROR);
 
@@ -131,8 +135,6 @@ mode DEFAULT_MODE;
 UNMATCHED_PAREN : '*)'
 { setText("Unmatched *)"); }
 -> type(ERROR);
-
-WHITESPACE : (' ' | '\n' | '\f' | '\r' | '\t' | '\u000B')+ -> skip;
 
 /* Catch-all for unexpected characters */
 ERROR : . ;
