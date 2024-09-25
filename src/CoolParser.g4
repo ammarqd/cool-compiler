@@ -13,4 +13,4 @@ program
 	;
 
 coolClass :
-	;
+	CLASS TYPEID (INHERITS TYPEID)? CURLY_OPEN CURLY_CLOSE;
