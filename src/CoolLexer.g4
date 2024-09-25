@@ -29,7 +29,6 @@ LESS_EQ_OPERATOR            : '<=';
 EQ_OPERATOR                 : '=' ;
 ASSIGN_OPERATOR 	        : '<-';
 RIGHTARROW                  : '=>';
-NOT                         : 'not';
 
 /* Keywords */
 CLASS : [cC][lL][aA][sS][sS];
@@ -48,6 +47,7 @@ OF : [oO][fF];
 ESAC : [eE][sS][aA][cC];
 NEW : [nN][eE][wW];
 ISVOID : [iI][sS][vV][oO][iI][dD];
+NOT : [nN][oO][tT];
 TRUE : 't'[rR][uU][eE];
 FALSE : 'f'[aA][lL][sS][eE];
 
