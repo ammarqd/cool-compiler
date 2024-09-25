@@ -35,3 +35,7 @@ assignments/pa3/testsuite
 *~
 *.DS_Store
 
+# Ignore IntelliJ IDEA files
+*.iml
+.idea/
+

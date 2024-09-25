@@ -1,5 +1,6 @@
 class A {
     main() : Object {
+        ~54
     };
 };
 
