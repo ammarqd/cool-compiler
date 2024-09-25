@@ -34,7 +34,6 @@ NOT                         : 'not';
 /* Keywords */
 CLASS : [cC][lL][aA][sS][sS];
 INHERITS : [iI][nN][hH][eE][rR][iI][tT][sS];
-MAIN : [mM][aA][iI][nN];
 IF : [iI][fF];
 THEN : [tT][hH][eE][nN];
 ELSE : [eE][lL][sS][eE];
