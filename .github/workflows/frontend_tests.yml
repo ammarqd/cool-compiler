@@ -1,0 +1,42 @@
+name: frontend_tests
+
+on:
+  push:
+    branches:
+      - main
+      - frontend
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up COOL_HOME
+        run: echo "COOL_HOME=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+
+      - name: Update PATH
+        run: echo "PATH=$COOL_HOME/bin/.orig/.Linux:$COOL_HOME/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Build frontend
+        run: |
+          cd assignments/pa1/
+          buildme frontend
+
+      - name: Test lexer
+        run: |
+          cd assignments/pa1/
+          testme lexer
+
+      - name: Test parser
+        run: |
+          cd assignments/pa1/
+          testme parser
