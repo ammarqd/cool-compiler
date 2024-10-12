@@ -1,6 +1,8 @@
 import ast.ClassNode;
 import ast.ProgramNode;
 import ast.*;
+import java.util.List;
+import java.util.ArrayList;
 
 public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
 
@@ -29,6 +31,38 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
             classNode.add((FeatureNode)visitFeature(f));
         }
         return classNode;
+    }
+
+    @Override
+    public Tree visitFormalList(CoolParser.FormalListContext ctx) {
+        // Instead of returning a List<FormalNode>, we will process the formals and return a Tree-compatible type
+        List<FormalNode> formals = new ArrayList<>();
+        for (CoolParser.FormalContext f : ctx.formal()) {
+            formals.add((FormalNode) visitFormal(f));
+        }
+        return formals.isEmpty() ? null : formals.get(0);  // Returning the first FormalNode, since we can't return a list directly
+    }
+
+    @Override
+    public Tree visitFeature(CoolParser.FeatureContext ctx) {
+
+        if (ctx.PARENT_OPEN() != null) {
+
+            Symbol featureName = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
+            List<FormalNode> formals = ctx.formalList() != null ? (List<FormalNode>) visitFormalList(ctx.formalList()) : null;
+            Symbol return_type = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
+            ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr());
+
+            return new MethodNode(1, featureName, formals, return_type, expr);
+        }
+        return null;
+    }
+
+    @Override
+    public Tree visitFormal(CoolParser.FormalContext ctx) {
+        Symbol formalName = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
+        Symbol formalType = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
+        return new FormalNode(1, formalName, formalType);
     }
 
 }
