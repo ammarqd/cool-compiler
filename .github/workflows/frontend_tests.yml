@@ -1,4 +1,4 @@
-name: frontend_tests
+name: frontend_lexer_parser_tests
 
 on:
   push:
@@ -7,7 +7,8 @@ on:
       - frontend
 
 jobs:
-  build:
+  test:
+    name: Frontend Tests
     runs-on: ubuntu-latest
 
     steps:
