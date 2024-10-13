@@ -36,9 +36,9 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     @Override
     public Tree visitFeature(CoolParser.FeatureContext ctx) {
 
-        Symbol name = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
-
         if (ctx.PARENT_OPEN() != null) {
+
+            Symbol name = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
             List<FormalNode> formals = new ArrayList<>();
             if (ctx.formalList() != null) {
                 for (CoolParser.FormalContext formal_ctx : ctx.formalList().formal()) {
@@ -46,8 +46,8 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
                 }
             }
             Symbol return_type = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
-            ExpressionNode body = (ExpressionNode) visitExpr(ctx.expr());
-            return new MethodNode(1, name, formals, return_type, body);
+            ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr());
+            return new MethodNode(1, name, formals, return_type, expr);
         }
         return null;
     }
