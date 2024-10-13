@@ -66,8 +66,16 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     @Override
     public Tree visitExpr(CoolParser.ExprContext ctx) {
         if (ctx.INT_CONST() != null) {
-            Symbol intSymbol = new Symbol(ctx.INT_CONST().getText(), ctx.getStart().getLine());
-            return new IntConstNode(1, intSymbol);
+            return new IntConstNode(1, new Symbol(ctx.INT_CONST().getText(), ctx.getStart().getLine()));
+        }
+        if (ctx.STR_CONST() != null) {
+            return new StringConstNode(1, new Symbol(ctx.STR_CONST().getText(), ctx.getStart().getLine()));
+        }
+        if (ctx.TRUE() != null) {
+            return new BoolConstNode(1, true);
+        }
+        if (ctx.FALSE() != null) {
+            return new BoolConstNode(1, false);
         }
         return null;
     }

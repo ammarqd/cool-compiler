@@ -1,5 +1,5 @@
 class A {
-    blah : Int <- 22;
+    blah : Boolean <- false;
     main() : Object {
         ~54
     };
