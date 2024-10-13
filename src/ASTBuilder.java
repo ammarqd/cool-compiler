@@ -46,7 +46,7 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
                 }
             }
             Symbol return_type = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
-            ExpressionNode body = (ExpressionNode) visitExpression(ctx.expr());
+            ExpressionNode body = (ExpressionNode) visitExpr(ctx.expr());
             return new MethodNode(1, name, formals, return_type, body);
         }
         return null;
