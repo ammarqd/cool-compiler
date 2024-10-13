@@ -48,7 +48,12 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
             ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr());
             return new MethodNode(1, name, formals, return_type, expr);
         }
-        return null;
+        else {
+            Symbol name = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
+            Symbol type_decl = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
+            ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr());
+            return new AttributeNode(1, name, type_decl, expr);
+        }
     }
 
     @Override
@@ -57,4 +62,15 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
         Symbol type_decl = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
         return new FormalNode(1, name, type_decl);
     }
+
+    @Override
+    public Tree visitExpr(CoolParser.ExprContext ctx) {
+        if (ctx.INT_CONST() != null) {
+            Symbol intSymbol = new Symbol(ctx.INT_CONST().getText(), ctx.getStart().getLine());
+            return new IntConstNode(1, intSymbol);
+        }
+        return null;
+    }
+
+
 }

@@ -1,4 +1,5 @@
 class A {
+    blah : Int <- 22;
     main() : Object {
         ~54
     };
