@@ -65,18 +65,35 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
 
     @Override
     public Tree visitExpr(CoolParser.ExprContext ctx) {
-        if (ctx.INT_CONST() != null) {
+
+        if (ctx.ASSIGN_OPERATOR(0) != null)
+            return new AssignNode(1, new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine()), (ExpressionNode) visitExpr(ctx.expr(0)));
+        if (ctx.NEW() != null)
+            return new NewNode(1, new Symbol(ctx.TYPEID(0).getText(), ctx.getStart().getLine()));
+        if (ctx.ISVOID() != null)
+            return new IsVoidNode(1, (ExpressionNode) visitExpr(ctx.expr(0)));
+        if (ctx.PLUS_OPERATOR() != null)
+            return new PlusNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
+        if (ctx.MINUS_OPERATOR() != null)
+            return new SubNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
+        if (ctx.MULT_OPERATOR() != null)
+            return new MulNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
+        if (ctx.DIV_OPERATOR() != null)
+            return new DivideNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
+        if (ctx.INT_COMPLEMENT_OPERATOR() != null)
+            return new NegNode(1, (ExpressionNode) visitExpr(ctx.expr(0)));
+        if (ctx.NOT() != null)
+            return new CompNode(1, (ExpressionNode) visitExpr(ctx.expr(0)));
+        if (ctx.OBJECTID(0) != null)
+            return new ObjectNode(1, new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine()));
+        if (ctx.INT_CONST() != null)
             return new IntConstNode(1, new Symbol(ctx.INT_CONST().getText(), ctx.getStart().getLine()));
-        }
-        if (ctx.STR_CONST() != null) {
+        if (ctx.STR_CONST() != null)
             return new StringConstNode(1, new Symbol(ctx.STR_CONST().getText(), ctx.getStart().getLine()));
-        }
-        if (ctx.TRUE() != null) {
+        if (ctx.TRUE() != null)
             return new BoolConstNode(1, true);
-        }
-        if (ctx.FALSE() != null) {
+        if (ctx.FALSE() != null)
             return new BoolConstNode(1, false);
-        }
         return null;
     }
 
