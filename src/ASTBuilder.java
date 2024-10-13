@@ -82,6 +82,12 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
             return new DivideNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
         if (ctx.INT_COMPLEMENT_OPERATOR() != null)
             return new NegNode(1, (ExpressionNode) visitExpr(ctx.expr(0)));
+        if (ctx.LESS_OPERATOR() != null)
+            return new LTNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
+        if (ctx.LESS_EQ_OPERATOR() != null)
+            return new LEqNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
+        if (ctx.LESS_EQ_OPERATOR() != null)
+            return new EqNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
         if (ctx.NOT() != null)
             return new CompNode(1, (ExpressionNode) visitExpr(ctx.expr(0)));
         if (ctx.OBJECTID(0) != null)
