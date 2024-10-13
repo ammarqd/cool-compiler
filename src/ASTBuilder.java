@@ -37,12 +37,11 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     public Tree visitFeature(CoolParser.FeatureContext ctx) {
 
         if (ctx.PARENT_OPEN() != null) {
-
             Symbol name = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
             List<FormalNode> formals = new ArrayList<>();
-            if (ctx.formalList() != null) {
-                for (CoolParser.FormalContext formal_ctx : ctx.formalList().formal()) {
-                    formals.add((FormalNode) visitFormal(formal_ctx));
+            if (ctx.formal() != null) {
+                for (CoolParser.FormalContext f : ctx.formal()) {
+                    formals.add((FormalNode) visitFormal(f));
                 }
             }
             Symbol return_type = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());

@@ -16,11 +16,9 @@ coolClass :
 	CLASS TYPEID (INHERITS TYPEID)? CURLY_OPEN (feature SEMICOLON)* CURLY_CLOSE;
 
 feature
-    : OBJECTID PARENT_OPEN formalList? PARENT_CLOSE COLON TYPEID CURLY_OPEN expr CURLY_CLOSE // Method declaration
+    : OBJECTID PARENT_OPEN (formal (COMMA formal)*)? PARENT_CLOSE COLON TYPEID CURLY_OPEN expr CURLY_CLOSE // Method declaration
     | OBJECTID COLON TYPEID (ASSIGN_OPERATOR expr)? // Variable declaration and assignment
     ;
-
-formalList : formal (COMMA formal)*;
 
 formal : OBJECTID COLON TYPEID;
 
