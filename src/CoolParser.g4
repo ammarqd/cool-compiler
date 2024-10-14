@@ -22,11 +22,9 @@ feature
 
 formal : OBJECTID COLON TYPEID;
 
-exprList : expr (COMMA expr)*;
-
 expr
-    : expr PERIOD OBJECTID PARENT_OPEN exprList? PARENT_CLOSE // Static Dispatch
-    | expr AT TYPEID PERIOD OBJECTID PARENT_OPEN exprList? PARENT_CLOSE // Dynamic Dispatch
+    : expr PERIOD OBJECTID PARENT_OPEN (expr (COMMA expr)*)? PARENT_CLOSE // Dynamic Dispatch
+    | expr AT TYPEID PERIOD OBJECTID PARENT_OPEN (expr (COMMA expr)*)? PARENT_CLOSE // Static Dispatch
     | INT_COMPLEMENT_OPERATOR expr
     | ISVOID expr
     | PARENT_OPEN expr PARENT_CLOSE
@@ -36,7 +34,7 @@ expr
     | NOT expr
     | OBJECTID ASSIGN_OPERATOR expr
     | LET OBJECTID COLON TYPEID (ASSIGN_OPERATOR expr)? (COMMA OBJECTID COLON TYPEID (ASSIGN_OPERATOR expr)?)* IN expr
-    | OBJECTID PARENT_OPEN exprList? PARENT_CLOSE
+    | OBJECTID PARENT_OPEN (expr (COMMA expr)*)? PARENT_CLOSE
     | IF expr THEN expr ELSE expr FI
     | WHILE expr LOOP expr POOL
     | CURLY_OPEN (expr SEMICOLON)+ CURLY_CLOSE

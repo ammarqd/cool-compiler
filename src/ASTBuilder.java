@@ -73,6 +73,7 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     public Tree visitExpr(CoolParser.ExprContext ctx) {
         if (ctx.LET() != null) return letNode(ctx);
         if (ctx.ASSIGN_OPERATOR(0) != null) return assignNode(ctx);
+        if (ctx.OBJECTID(0) != null && ctx.PARENT_OPEN() != null) return dispatchNode(ctx);
         if (ctx.IF() != null) return condNode(ctx);
         if (ctx.WHILE() != null) return loopNode(ctx);
         if (ctx.CURLY_OPEN() != null) return blockNode(ctx);
@@ -120,6 +121,16 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
 
     private AssignNode assignNode(CoolParser.ExprContext ctx) {
         return new AssignNode(1, new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine()), (ExpressionNode) visitExpr(ctx.expr(0)));
+    }
+
+    private DispatchNode dispatchNode(CoolParser.ExprContext ctx) {
+        ExpressionNode expr = (ctx.expr() != null) ?
+                (ExpressionNode) visitExpr(ctx.expr(0)) :
+                new NoExpressionNode(1);
+        List<ExpressionNode> actuals = new ArrayList<>();
+        for (int i = 1; i < ctx.expr().size(); i++)
+            actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
+        return new DispatchNode(1, expr, new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine()), actuals);
     }
 
     private CondNode condNode(CoolParser.ExprContext ctx) {
