@@ -48,31 +48,35 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
                 formals.add((FormalNode) visitFormal(f));
             }
         }
-        Symbol returnType = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
+        Symbol return_type = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
         ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr());
-        return new MethodNode(1, name, formals, returnType, expr);
+        return new MethodNode(1, name, formals, return_type, expr);
     }
 
     private AttributeNode attributeNode(CoolParser.FeatureContext ctx) {
         Symbol name = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
-        Symbol typeDecl = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
-        ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr());
-        return new AttributeNode(1, name, typeDecl, expr);
+        Symbol type_decl = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
+        ExpressionNode expr = ctx.expr() != null ?
+                (ExpressionNode) visitExpr(ctx.expr()) :
+                new NoExpressionNode(1);
+        return new AttributeNode(1, name, type_decl, expr);
     }
 
     @Override
     public Tree visitFormal(CoolParser.FormalContext ctx) {
         Symbol name = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
-        Symbol typeDecl = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
-        return new FormalNode(1, name, typeDecl);
+        Symbol type_decl = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
+        return new FormalNode(1, name, type_decl);
     }
 
     @Override
     public Tree visitExpr(CoolParser.ExprContext ctx) {
+        if (ctx.LET() != null) return letNode(ctx);
         if (ctx.ASSIGN_OPERATOR(0) != null) return assignNode(ctx);
         if (ctx.IF() != null) return condNode(ctx);
         if (ctx.WHILE() != null) return loopNode(ctx);
         if (ctx.CURLY_OPEN() != null) return blockNode(ctx);
+        if (ctx.CASE() != null) return caseNode(ctx);
         if (ctx.NEW() != null) return newNode(ctx);
         if (ctx.ISVOID() != null) return isVoidNode(ctx);
         if (ctx.PLUS_OPERATOR() != null) return plusNode(ctx);
@@ -93,6 +97,27 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
         return null;
     }
 
+    private LetNode letNode(CoolParser.ExprContext ctx) {
+
+        Symbol identifier = new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine());
+        Symbol type_decl = new Symbol(ctx.TYPEID(0).getText(), ctx.getStart().getLine());
+
+        ExpressionNode init = (ctx.ASSIGN_OPERATOR(0) != null) ?
+                (ExpressionNode) visitExpr(ctx.expr(0)) :
+                new NoExpressionNode(1);
+
+        for (int i = 1; i < ctx.OBJECTID().size(); i++) {
+            Symbol next_identifier = new Symbol(ctx.OBJECTID(i).getText(), ctx.getStart().getLine());
+            Symbol next_type_decl = new Symbol(ctx.TYPEID(i).getText(), ctx.getStart().getLine());
+            ExpressionNode next_init = (ctx.expr(i) != null ?
+                    (ExpressionNode) visitExpr(ctx.expr(i)) :
+                    new NoExpressionNode(1));
+            init = new LetNode(1, next_identifier, next_type_decl, next_init, init);
+        }
+        ExpressionNode body = (ExpressionNode) visitExpr(ctx.expr(ctx.expr().size() - 1));
+        return new LetNode(1, identifier, type_decl, init, body);
+    }
+
     private AssignNode assignNode(CoolParser.ExprContext ctx) {
         return new AssignNode(1, new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine()), (ExpressionNode) visitExpr(ctx.expr(0)));
     }
@@ -105,12 +130,28 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
         return new LoopNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
     }
 
-    private BlockNode blockNode(CoolParser.ExprContext ctx) {
-        List<ExpressionNode> exprList = new ArrayList<>();
-        for (CoolParser.ExprContext e : ctx.expr()) {
-            exprList.add((ExpressionNode) visitExpr(e));
+    private CaseNode caseNode(CoolParser.ExprContext ctx) {
+
+        ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr(0));
+        List<BranchNode> branches = new ArrayList<>();
+        int caseBranchCount = ctx.OBJECTID().size();
+        for (int i = 0; i < caseBranchCount; i++) {
+            Symbol identifier = new Symbol(ctx.OBJECTID(i).getText(), ctx.getStart().getLine());
+            Symbol type_decl = new Symbol(ctx.TYPEID(i).getText(), ctx.getStart().getLine());
+            ExpressionNode branch_expr = (ExpressionNode) visitExpr(ctx.expr(i + 1));
+            branches.add(new BranchNode(1, identifier, type_decl, branch_expr));
         }
-        return new BlockNode(1, exprList);
+        return new CaseNode(1, expr, branches);
+    }
+
+
+    private BlockNode blockNode(CoolParser.ExprContext ctx) {
+
+        List<ExpressionNode> expr_list = new ArrayList<>();
+        for (CoolParser.ExprContext e : ctx.expr()) {
+            expr_list.add((ExpressionNode) visitExpr(e));
+        }
+        return new BlockNode(1, expr_list);
     }
 
     private NewNode newNode(CoolParser.ExprContext ctx) {
@@ -166,7 +207,16 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     }
 
     private StringConstNode stringConstNode(CoolParser.ExprContext ctx) {
-        return new StringConstNode(1, new Symbol(ctx.STR_CONST().getText(), ctx.getStart().getLine()));
+
+        String rawString = ctx.STR_CONST().getText().substring(1, ctx.STR_CONST().getText().length() - 1);
+        rawString = rawString.replace("\\\"", "\"")
+                .replace("\\n", "\n")
+                .replace("\\t", "\t")
+                .replace("\\b", "\b")
+                .replace("\\f", "\f")
+                .replace("\\r", "\r")
+                .replace("\\\\", "\\");
+        return new StringConstNode(1, new Symbol(rawString, ctx.getStart().getLine()));
     }
 
     private BoolConstNode boolConstNode(boolean value) {

@@ -1,15 +1,6 @@
 class A {
     blah : Int;
     main() : Object {
-        {
-            let blah : Int <- 5, s : String <- "s" in 5;
-            5;
-        }
+        case 5 of blah : Int => 7; esac
     };
-    hello(i : Int, s : String) : Object {
-        2
-    };
-};
-
-Class BB__ inherits A {
 };

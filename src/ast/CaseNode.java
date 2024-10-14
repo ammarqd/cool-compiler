@@ -22,7 +22,6 @@ public class CaseNode extends ExpressionNode {
         super(lineNumber);
         this.expr = expr;
         this.cases = cases;
-        this.expr = expr;
     }
 
     public <R,D> R accept(TreeVisitor<R,D> visitor, D data) {

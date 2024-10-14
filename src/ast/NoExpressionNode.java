@@ -5,7 +5,7 @@ import ast.visitor.TreeVisitor;
 public class NoExpressionNode extends ExpressionNode {
 
     public NoExpressionNode(int lineNumber) {
-        super(0);
+        super(lineNumber);
     }
 
     public <R,D> R accept(TreeVisitor<R,D> visitor, D data) {
