@@ -142,15 +142,9 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
         for (int i = 1; i < ctx.expr().size(); i++) {
             actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
         }
-        Symbol methodName = new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine());
-        Symbol typeName = new Symbol(ctx.TYPEID(0).getText(), ctx.getStart().getLine());
-        return new StaticDispatchNode(
-                1,  // Line number
-                expr,                      // Expression (left-hand side)
-                typeName,                  // Type (specified after '@')
-                methodName,                // Method name
-                actuals                    // Method arguments
-        );
+        Symbol type_name = new Symbol(ctx.TYPEID(0).getText(), ctx.getStart().getLine());
+        Symbol method_name = new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine());
+        return new StaticDispatchNode(1, expr, type_name, method_name, actuals);
     }
 
     private CondNode condNode(CoolParser.ExprContext ctx) {
