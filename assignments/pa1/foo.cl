@@ -1,7 +1,10 @@
 class A {
-    blah : Int <- blah2 <- 54;
+    blah : Int;
     main() : Object {
-        5*3/4
+        {
+            let blah : Int <- 5, s : String <- "s" in 5;
+            5;
+        }
     };
     hello(i : Int, s : String) : Object {
         2
