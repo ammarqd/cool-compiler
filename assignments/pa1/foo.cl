@@ -1,6 +1,6 @@
 class A {
     blah : Int;
     main() : Object {
-        blah(1, "c")
+        5@Int.blah(2,1)
     };
 };

@@ -73,6 +73,7 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     public Tree visitExpr(CoolParser.ExprContext ctx) {
         if (ctx.LET() != null) return letNode(ctx);
         if (ctx.ASSIGN_OPERATOR(0) != null) return assignNode(ctx);
+        if (ctx.AT() != null) return staticDispatchNode(ctx);
         if (ctx.OBJECTID(0) != null && ctx.PARENT_OPEN() != null) return dispatchNode(ctx);
         if (ctx.IF() != null) return condNode(ctx);
         if (ctx.WHILE() != null) return loopNode(ctx);
@@ -124,13 +125,32 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     }
 
     private DispatchNode dispatchNode(CoolParser.ExprContext ctx) {
-        ExpressionNode expr = (ctx.expr() != null) ?
-                (ExpressionNode) visitExpr(ctx.expr(0)) :
-                new NoExpressionNode(1);
         List<ExpressionNode> actuals = new ArrayList<>();
-        for (int i = 1; i < ctx.expr().size(); i++)
-            actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
+        ExpressionNode expr;
+        if (!ctx.expr().isEmpty()) {
+            expr = (ExpressionNode) visitExpr(ctx.expr(0));
+            for (int i = 1; i < ctx.expr().size(); i++)
+                actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
+        } else
+            expr = new ObjectNode(1, new Symbol("self", ctx.getStart().getLine()));
         return new DispatchNode(1, expr, new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine()), actuals);
+    }
+
+    private StaticDispatchNode staticDispatchNode(CoolParser.ExprContext ctx) {
+        List<ExpressionNode> actuals = new ArrayList<>();
+        ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr(0));
+        for (int i = 1; i < ctx.expr().size(); i++) {
+            actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
+        }
+        Symbol methodName = new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine());
+        Symbol typeName = new Symbol(ctx.TYPEID(0).getText(), ctx.getStart().getLine());
+        return new StaticDispatchNode(
+                1,  // Line number
+                expr,                      // Expression (left-hand side)
+                typeName,                  // Type (specified after '@')
+                methodName,                // Method name
+                actuals                    // Method arguments
+        );
     }
 
     private CondNode condNode(CoolParser.ExprContext ctx) {
