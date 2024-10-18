@@ -127,12 +127,14 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     private DispatchNode dispatchNode(CoolParser.ExprContext ctx) {
         List<ExpressionNode> actuals = new ArrayList<>();
         ExpressionNode expr;
-        if (!ctx.expr().isEmpty()) {
+        if (ctx.PERIOD() != null)
             expr = (ExpressionNode) visitExpr(ctx.expr(0));
-            for (int i = 1; i < ctx.expr().size(); i++)
-                actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
-        } else
+        else
             expr = new ObjectNode(1, new Symbol("self", ctx.getStart().getLine()));
+        int startIndex = (ctx.PERIOD() != null) ? 1 : 0;
+        for (int i = startIndex; i < ctx.expr().size(); i++) {
+            actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
+        }
         return new DispatchNode(1, expr, new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine()), actuals);
     }
 
