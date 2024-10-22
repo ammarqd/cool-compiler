@@ -1,6 +1,6 @@
 class A {
     blah : Int;
     main() : Object {
-        5@Int.blah()
+       let x : Int <- 2 < 8, what : String <- not 3 in 3 * 2 < 1 + 3 * 2
     };
 };

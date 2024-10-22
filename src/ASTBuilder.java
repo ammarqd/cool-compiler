@@ -71,182 +71,119 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
 
     @Override
     public Tree visitExpr(CoolParser.ExprContext ctx) {
-        if (ctx.LET() != null) return letNode(ctx);
-        if (ctx.ASSIGN_OPERATOR(0) != null) return assignNode(ctx);
-        if (ctx.AT() != null) return staticDispatchNode(ctx);
-        if (ctx.OBJECTID(0) != null && ctx.PARENT_OPEN() != null) return dispatchNode(ctx);
-        if (ctx.IF() != null) return condNode(ctx);
-        if (ctx.WHILE() != null) return loopNode(ctx);
-        if (ctx.CURLY_OPEN() != null) return blockNode(ctx);
-        if (ctx.CASE() != null) return caseNode(ctx);
-        if (ctx.NEW() != null) return newNode(ctx);
-        if (ctx.ISVOID() != null) return isVoidNode(ctx);
-        if (ctx.PLUS_OPERATOR() != null) return plusNode(ctx);
-        if (ctx.MINUS_OPERATOR() != null) return subNode(ctx);
-        if (ctx.MULT_OPERATOR() != null) return mulNode(ctx);
-        if (ctx.DIV_OPERATOR() != null) return divideNode(ctx);
-        if (ctx.INT_COMPLEMENT_OPERATOR() != null) return negNode(ctx);
-        if (ctx.LESS_OPERATOR() != null) return ltNode(ctx);
-        if (ctx.LESS_EQ_OPERATOR() != null) return leqNode(ctx);
-        if (ctx.EQ_OPERATOR() != null) return eqNode(ctx);
-        if (ctx.NOT() != null) return compNode(ctx);
-        if (ctx.PARENT_OPEN() != null) return visitExpr(ctx.expr(0));
-        if (ctx.OBJECTID(0) != null) return objectNode(ctx);
-        if (ctx.INT_CONST() != null) return intConstNode(ctx);
-        if (ctx.STR_CONST() != null) return stringConstNode(ctx);
-        if (ctx.TRUE() != null) return boolConstNode(true);
-        if (ctx.FALSE() != null) return boolConstNode(false);
+        return visitAssignmentExpr(ctx.assignmentExpr());
+    }
+
+    @Override
+    public Tree visitAssignmentExpr(CoolParser.AssignmentExprContext ctx) {
+        if (ctx.negationExpr() != null) {
+            return visitNegationExpr(ctx.negationExpr());
+        }
+        if (ctx.LET() != null) {
+            List<Symbol> identifiers = new ArrayList<>();
+            List<Symbol> typeDecls = new ArrayList<>();
+            List<ExpressionNode> inits = new ArrayList<>();
+            for (int i = 0; i < ctx.OBJECTID().size(); i++) {
+                Symbol identifier = new Symbol(ctx.OBJECTID(i).getText(), ctx.getStart().getLine());
+                Symbol typeDecl = new Symbol(ctx.TYPEID(i).getText(), ctx.getStart().getLine());
+                ExpressionNode init = (ctx.ASSIGN_OPERATOR(i) != null)
+                        ? (ExpressionNode) visitExpr(ctx.expr(i))
+                        : new NoExpressionNode(1);
+                identifiers.add(identifier);
+                typeDecls.add(typeDecl);
+                inits.add(init);
+            }
+            ExpressionNode body = (ExpressionNode) visitExpr(ctx.expr(ctx.expr().size() - 1));
+            for (int i = identifiers.size() - 1; i >= 0; i--) {
+                body = new LetNode(1, identifiers.get(i), typeDecls.get(i), inits.get(i), body);
+            }
+            return body;
+        }
         return null;
     }
 
-    private LetNode letNode(CoolParser.ExprContext ctx) {
-
-        Symbol identifier = new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine());
-        Symbol type_decl = new Symbol(ctx.TYPEID(0).getText(), ctx.getStart().getLine());
-
-        ExpressionNode init = (ctx.ASSIGN_OPERATOR(0) != null) ?
-                (ExpressionNode) visitExpr(ctx.expr(0)) :
-                new NoExpressionNode(1);
-
-        for (int i = 1; i < ctx.OBJECTID().size(); i++) {
-            Symbol next_identifier = new Symbol(ctx.OBJECTID(i).getText(), ctx.getStart().getLine());
-            Symbol next_type_decl = new Symbol(ctx.TYPEID(i).getText(), ctx.getStart().getLine());
-            ExpressionNode next_init = (ctx.expr(i) != null ?
-                    (ExpressionNode) visitExpr(ctx.expr(i)) :
-                    new NoExpressionNode(1));
-            init = new LetNode(1, next_identifier, next_type_decl, next_init, init);
+    @Override
+    public Tree visitNegationExpr(CoolParser.NegationExprContext ctx) {
+        if (ctx.NOT() != null) {
+            return new CompNode(1, (ExpressionNode) visitExpr(ctx.expr()));
         }
-        ExpressionNode body = (ExpressionNode) visitExpr(ctx.expr(ctx.expr().size() - 1));
-        return new LetNode(1, identifier, type_decl, init, body);
+        return visitComparisonExpr(ctx.comparisonExpr());
     }
 
-    private AssignNode assignNode(CoolParser.ExprContext ctx) {
-        return new AssignNode(1, new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine()), (ExpressionNode) visitExpr(ctx.expr(0)));
-    }
-
-    private DispatchNode dispatchNode(CoolParser.ExprContext ctx) {
-        List<ExpressionNode> actuals = new ArrayList<>();
-        ExpressionNode expr;
-        if (ctx.PERIOD() != null)
-            expr = (ExpressionNode) visitExpr(ctx.expr(0));
-        else
-            expr = new ObjectNode(1, new Symbol("self", ctx.getStart().getLine()));
-        int startIndex = (ctx.PERIOD() != null) ? 1 : 0;
-        for (int i = startIndex; i < ctx.expr().size(); i++) {
-            actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
+    @Override
+    public Tree visitComparisonExpr(CoolParser.ComparisonExprContext ctx) {
+        if (ctx.LESS_OPERATOR() == null && ctx.LESS_EQ_OPERATOR() == null && ctx.EQ_OPERATOR() == null) {
+            return visitDefaultExpr(ctx.defaultExpr(0));
         }
-        return new DispatchNode(1, expr, new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine()), actuals);
+
+        ExpressionNode left = (ExpressionNode) visitDefaultExpr(ctx.defaultExpr(0));
+        ExpressionNode right = (ExpressionNode) visitDefaultExpr(ctx.defaultExpr(1));
+
+        if (ctx.LESS_OPERATOR() != null) return new LTNode(1, left, right);
+        if (ctx.LESS_EQ_OPERATOR() != null) return new LEqNode(1, left, right);
+        if (ctx.EQ_OPERATOR() != null) return new EqNode(1, left, right);
+
+        return null;
     }
 
-    private StaticDispatchNode staticDispatchNode(CoolParser.ExprContext ctx) {
-        List<ExpressionNode> actuals = new ArrayList<>();
-        ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr(0));
-        for (int i = 1; i < ctx.expr().size(); i++) {
-            actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
+    @Override
+    public Tree visitDefaultExpr(CoolParser.DefaultExprContext ctx) {
+        if (ctx.MULT_OPERATOR() != null) {
+            return new MulNode(1,
+                    (ExpressionNode) visitDefaultExpr(ctx.defaultExpr(0)),
+                    (ExpressionNode) visitDefaultExpr(ctx.defaultExpr(1))
+            );
         }
-        Symbol type_name = new Symbol(ctx.TYPEID(0).getText(), ctx.getStart().getLine());
-        Symbol method_name = new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine());
-        return new StaticDispatchNode(1, expr, type_name, method_name, actuals);
-    }
-
-    private CondNode condNode(CoolParser.ExprContext ctx) {
-        return new CondNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)), (ExpressionNode) visitExpr(ctx.expr(2)));
-    }
-
-    private LoopNode loopNode(CoolParser.ExprContext ctx) {
-        return new LoopNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
-    }
-
-    private CaseNode caseNode(CoolParser.ExprContext ctx) {
-
-        ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr(0));
-        List<BranchNode> branches = new ArrayList<>();
-        int caseBranchCount = ctx.OBJECTID().size();
-        for (int i = 0; i < caseBranchCount; i++) {
-            Symbol identifier = new Symbol(ctx.OBJECTID(i).getText(), ctx.getStart().getLine());
-            Symbol type_decl = new Symbol(ctx.TYPEID(i).getText(), ctx.getStart().getLine());
-            ExpressionNode branch_expr = (ExpressionNode) visitExpr(ctx.expr(i + 1));
-            branches.add(new BranchNode(1, identifier, type_decl, branch_expr));
+        if (ctx.DIV_OPERATOR() != null) {
+            return new DivideNode(1,
+                    (ExpressionNode) visitDefaultExpr(ctx.defaultExpr(0)),
+                    (ExpressionNode) visitDefaultExpr(ctx.defaultExpr(1))
+            );
         }
-        return new CaseNode(1, expr, branches);
-    }
-
-
-    private BlockNode blockNode(CoolParser.ExprContext ctx) {
-
-        List<ExpressionNode> expr_list = new ArrayList<>();
-        for (CoolParser.ExprContext e : ctx.expr()) {
-            expr_list.add((ExpressionNode) visitExpr(e));
+        if (ctx.PLUS_OPERATOR() != null) {
+            return new PlusNode(1,
+                    (ExpressionNode) visitDefaultExpr(ctx.defaultExpr(0)),
+                    (ExpressionNode) visitDefaultExpr(ctx.defaultExpr(1))
+            );
         }
-        return new BlockNode(1, expr_list);
+        if (ctx.MINUS_OPERATOR() != null) {
+            return new SubNode(1,
+                    (ExpressionNode) visitDefaultExpr(ctx.defaultExpr(0)),
+                    (ExpressionNode) visitDefaultExpr(ctx.defaultExpr(1))
+            );
+        }
+        if (ctx.NOT() != null) {
+            return new CompNode(1, (ExpressionNode) visitExpr(ctx.expr(0)));
+        }
+        if (ctx.LET() != null) {
+            List<Symbol> identifiers = new ArrayList<>();
+            List<Symbol> typeDecls = new ArrayList<>();
+            List<ExpressionNode> inits = new ArrayList<>();
+            for (int i = 0; i < ctx.OBJECTID().size(); i++) {
+                Symbol identifier = new Symbol(ctx.OBJECTID(i).getText(), ctx.getStart().getLine());
+                Symbol typeDecl = new Symbol(ctx.TYPEID(i).getText(), ctx.getStart().getLine());
+                ExpressionNode init = (ctx.ASSIGN_OPERATOR(i) != null)
+                        ? (ExpressionNode) visitExpr(ctx.expr(i))
+                        : new NoExpressionNode(1);
+                identifiers.add(identifier);
+                typeDecls.add(typeDecl);
+                inits.add(init);
+            }
+            ExpressionNode body = (ExpressionNode) visitExpr(ctx.expr(ctx.expr().size() - 1));
+            for (int i = identifiers.size() - 1; i >= 0; i--) {
+                body = new LetNode(1, identifiers.get(i), typeDecls.get(i), inits.get(i), body);
+            }
+            return body;
+        }
+        if (ctx.OBJECTID(0) != null && ctx.ASSIGN_OPERATOR() != null) {
+            return new AssignNode(1,
+                    new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine()),
+                    (ExpressionNode) visitExpr(ctx.expr(0)));
+        }
+        if (ctx.INT_CONST() != null) {
+            return new IntConstNode(1, new Symbol(ctx.INT_CONST().getText(), ctx.getStart().getLine()));
+        }
+        return null;
     }
 
-    private NewNode newNode(CoolParser.ExprContext ctx) {
-        return new NewNode(1, new Symbol(ctx.TYPEID(0).getText(), ctx.getStart().getLine()));
-    }
-
-    private IsVoidNode isVoidNode(CoolParser.ExprContext ctx) {
-        return new IsVoidNode(1, (ExpressionNode) visitExpr(ctx.expr(0)));
-    }
-
-    private PlusNode plusNode(CoolParser.ExprContext ctx) {
-        return new PlusNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
-    }
-
-    private SubNode subNode(CoolParser.ExprContext ctx) {
-        return new SubNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
-    }
-
-    private MulNode mulNode(CoolParser.ExprContext ctx) {
-        return new MulNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
-    }
-
-    private DivideNode divideNode(CoolParser.ExprContext ctx) {
-        return new DivideNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
-    }
-
-    private NegNode negNode(CoolParser.ExprContext ctx) {
-        return new NegNode(1, (ExpressionNode) visitExpr(ctx.expr(0)));
-    }
-
-    private LTNode ltNode(CoolParser.ExprContext ctx) {
-        return new LTNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
-    }
-
-    private LEqNode leqNode(CoolParser.ExprContext ctx) {
-        return new LEqNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
-    }
-
-    private EqNode eqNode(CoolParser.ExprContext ctx) {
-        return new EqNode(1, (ExpressionNode) visitExpr(ctx.expr(0)), (ExpressionNode) visitExpr(ctx.expr(1)));
-    }
-
-    private CompNode compNode(CoolParser.ExprContext ctx) {
-        return new CompNode(1, (ExpressionNode) visitExpr(ctx.expr(0)));
-    }
-
-    private ObjectNode objectNode(CoolParser.ExprContext ctx) {
-        return new ObjectNode(1, new Symbol(ctx.OBJECTID(0).getText(), ctx.getStart().getLine()));
-    }
-
-    private IntConstNode intConstNode(CoolParser.ExprContext ctx) {
-        return new IntConstNode(1, new Symbol(ctx.INT_CONST().getText(), ctx.getStart().getLine()));
-    }
-
-    private StringConstNode stringConstNode(CoolParser.ExprContext ctx) {
-
-        String rawString = ctx.STR_CONST().getText().substring(1, ctx.STR_CONST().getText().length() - 1);
-        rawString = rawString.replace("\\\"", "\"")
-                .replace("\\n", "\n")
-                .replace("\\t", "\t")
-                .replace("\\b", "\b")
-                .replace("\\f", "\f")
-                .replace("\\r", "\r")
-                .replace("\\\\", "\\");
-        return new StringConstNode(1, new Symbol(rawString, ctx.getStart().getLine()));
-    }
-
-    private BoolConstNode boolConstNode(boolean value) {
-        return new BoolConstNode(1, value);
-    }
 }
