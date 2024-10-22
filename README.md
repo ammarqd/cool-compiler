@@ -2,7 +2,7 @@
 A Compiler for the Cool programming language, written in Java and utilising ANTLR to define the grammar.
 
 - [x] Lexer (63/63 test cases passed!)
-- [ ] Parser (In Progress)
+- [x] Parser (71/71 test cases passed!)
 - [ ] Semantic Analysis
 - [ ] Code Generation
 
@@ -18,7 +18,7 @@ To test just the lexer, you can simply run ```testme lexer```
 
 <br>
 
-To compare the (WIP) frontend grammar output with the reference, within the ```assignments/pa1``` folder: 
+To compare the frontend grammar output with the reference, within the ```assignments/pa1``` folder: 
 ```
 buildme frontend
 ./myfrontend good.cl
