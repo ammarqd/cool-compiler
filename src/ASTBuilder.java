@@ -8,7 +8,7 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
 
     @Override
     public Tree visitProgram(CoolParser.ProgramContext ctx) {
-        ProgramNode p = new ProgramNode(ctx.getStart().getLine());
+        ProgramNode p = new ProgramNode(1);
         for (CoolParser.CoolClassContext c : ctx.coolClass()) {
             p.add((ClassNode) visitCoolClass(c));
         }
@@ -17,12 +17,10 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
 
     @Override
     public Tree visitCoolClass(CoolParser.CoolClassContext ctx) {
-        Symbol name = new Symbol(ctx.TYPEID(0).getText(), ctx.getStart().getLine());
-        Symbol parent = new Symbol(
-                ctx.INHERITS() != null ? ctx.TYPEID(1).getText() : "Object",
-                ctx.getStart().getLine()
-        );
-        Symbol filename = new Symbol(ctx.start.getInputStream().getSourceName(), ctx.getStart().getLine());
+        Symbol name = StringTable.idtable.addString(ctx.TYPEID(0).getText());
+        Symbol parent = ctx.INHERITS() != null ?
+            StringTable.idtable.addString(ctx.TYPEID(1).getText()) : TreeConstants.Object_;
+        Symbol filename = StringTable.stringtable.addString(ctx.getStart().getTokenSource().getSourceName());
 
         ClassNode class_node = new ClassNode(1, name, parent, filename);
         for (CoolParser.FeatureContext f : ctx.feature()) {
@@ -33,22 +31,22 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
 
     @Override
     public Tree visitMethod(CoolParser.MethodContext ctx) {
-        Symbol name = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
+        Symbol name = StringTable.idtable.addString(ctx.OBJECTID().getText());
         List<FormalNode> formals = new ArrayList<>();
         if (ctx.formal() != null) {
             for (CoolParser.FormalContext f : ctx.formal()) {
                 formals.add((FormalNode) visitFormal(f));
             }
         }
-        Symbol return_type = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
+        Symbol return_type = StringTable.idtable.addString(ctx.TYPEID().getText());
         ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr());
         return new MethodNode(1, name, formals, return_type, expr);
     }
 
     @Override
     public Tree visitAttribute(CoolParser.AttributeContext ctx) {
-        Symbol name = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
-        Symbol type_decl = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
+        Symbol name = StringTable.idtable.addString(ctx.OBJECTID().getText());
+        Symbol type_decl = StringTable.idtable.addString(ctx.TYPEID().getText());
         ExpressionNode expr = ctx.expr() != null ?
                 (ExpressionNode) visitExpr(ctx.expr()) :
                 new NoExpressionNode(1);
@@ -57,8 +55,8 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
 
     @Override
     public Tree visitFormal(CoolParser.FormalContext ctx) {
-        Symbol name = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
-        Symbol type_decl = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
+        Symbol name = StringTable.idtable.addString(ctx.OBJECTID().getText());
+        Symbol type_decl = StringTable.idtable.addString(ctx.TYPEID().getText());
         return new FormalNode(1, name, type_decl);
     }
 
@@ -89,8 +87,8 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
         for (int i = 0; i < ctx.expr().size(); i++) {
             actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
         }
-        Symbol type_name = new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine());
-        Symbol method_name = new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine());
+        Symbol type_name = StringTable.idtable.addString(ctx.TYPEID().getText());
+        Symbol method_name = StringTable.idtable.addString(ctx.OBJECTID().getText());
         return new StaticDispatchNode(1, expr, type_name, method_name, actuals);
     }
 
@@ -101,17 +99,17 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
         for (int i = 0; i < ctx.expr().size(); i++) {
             actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
         }
-        return new DispatchNode(1, expr, new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine()), actuals);
+        return new DispatchNode(1, expr, StringTable.idtable.addString(ctx.OBJECTID().getText()), actuals);
     }
 
     @Override
     public Tree visitMethodCall(CoolParser.MethodCallContext ctx) {
         List<ExpressionNode> actuals = new ArrayList<>();
-        ExpressionNode expr = new ObjectNode(1, new Symbol("self", ctx.getStart().getLine()));
+        ExpressionNode expr = new ObjectNode(1, StringTable.idtable.addString("self"));
         for (int i = 0; i < ctx.expr().size(); i++) {
             actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
         }
-        return new DispatchNode(1, expr, new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine()), actuals);
+        return new DispatchNode(1, expr, StringTable.idtable.addString(ctx.OBJECTID().getText()), actuals);
     }
 
     @Override
@@ -158,27 +156,27 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
 
     @Override
     public Tree visitAssign(CoolParser.AssignContext ctx) {
-        return new AssignNode(1, new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine()), (ExpressionNode) visitExpr(ctx.expr()));
+        return new AssignNode(1, StringTable.idtable.addString(ctx.OBJECTID().getText()), (ExpressionNode) visitExpr(ctx.expr()));
     }
 
     @Override
     public Tree visitLet(CoolParser.LetContext ctx) {
         List<Symbol> identifiers = new ArrayList<>();
-        List<Symbol> typeDecls = new ArrayList<>();
+        List<Symbol> type_decls = new ArrayList<>();
         List<ExpressionNode> inits = new ArrayList<>();
         for (int i = 0; i < ctx.OBJECTID().size(); i++) {
-            Symbol identifier = new Symbol(ctx.OBJECTID(i).getText(), ctx.getStart().getLine());
-            Symbol typeDecl = new Symbol(ctx.TYPEID(i).getText(), ctx.getStart().getLine());
+            Symbol identifier = StringTable.idtable.addString(ctx.OBJECTID(i).getText());
+            Symbol type_decl = StringTable.idtable.addString(ctx.TYPEID(i).getText());
             ExpressionNode init = (ctx.ASSIGN_OPERATOR(i) != null)
                     ? (ExpressionNode) visitExpr(ctx.expr(i))
                     : new NoExpressionNode(1);
             identifiers.add(identifier);
-            typeDecls.add(typeDecl);
+            type_decls.add(type_decl);
             inits.add(init);
         }
         ExpressionNode body = (ExpressionNode) visitExpr(ctx.expr(ctx.expr().size() - 1));
         for (int i = identifiers.size() - 1; i >= 0; i--) {
-            body = new LetNode(1, identifiers.get(i), typeDecls.get(i), inits.get(i), body);
+            body = new LetNode(1, identifiers.get(i), type_decls.get(i), inits.get(i), body);
         }
         return body;
     }
@@ -208,8 +206,8 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
         List<BranchNode> branches = new ArrayList<>();
         int caseBranchCount = ctx.OBJECTID().size();
         for (int i = 0; i < caseBranchCount; i++) {
-            Symbol identifier = new Symbol(ctx.OBJECTID(i).getText(), ctx.getStart().getLine());
-            Symbol type_decl = new Symbol(ctx.TYPEID(i).getText(), ctx.getStart().getLine());
+            Symbol identifier = StringTable.idtable.addString(ctx.OBJECTID(i).getText());
+            Symbol type_decl = StringTable.idtable.addString(ctx.TYPEID(i).getText());
             ExpressionNode branch_expr = (ExpressionNode) visitExpr(ctx.expr(i + 1));
             branches.add(new BranchNode(1, identifier, type_decl, branch_expr));
         }
@@ -218,17 +216,17 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
 
     @Override
     public Tree visitNew(CoolParser.NewContext ctx) {
-        return new NewNode(1, new Symbol(ctx.TYPEID().getText(), ctx.getStart().getLine()));
+        return new NewNode(1, StringTable.idtable.addString(ctx.TYPEID().getText()));
     }
 
     @Override
     public Tree visitObject(CoolParser.ObjectContext ctx) {
-        return new ObjectNode(1, new Symbol(ctx.OBJECTID().getText(), ctx.getStart().getLine()));
+        return new ObjectNode(1, StringTable.idtable.addString(ctx.OBJECTID().getText()));
     }
 
     @Override
     public Tree visitInteger(CoolParser.IntegerContext ctx) {
-        return new IntConstNode(1, new Symbol(ctx.INT_CONST().getText(), ctx.getStart().getLine()));
+        return new IntConstNode(1, StringTable.inttable.addString(ctx.INT_CONST().getText()));
     }
 
     @Override
@@ -241,7 +239,7 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
                 .replace("\\f", "\f")
                 .replace("\\r", "\r")
                 .replace("\\\\", "\\");
-        return new StringConstNode(1, new Symbol(rawString, ctx.getStart().getLine()));
+        return new StringConstNode(1, StringTable.stringtable.addString(rawString));
     }
 
     @Override
