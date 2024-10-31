@@ -33,7 +33,6 @@ public class Frontend {
                 if (Flags.verbose > 0) {
                     System.out.println("#name \"" + filename + "\"");
                 }
-
                 input = new ANTLRFileStream(filename);
 
                 CoolLexer lexer = new CoolLexer(input);

@@ -8,7 +8,7 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
 
     @Override
     public Tree visitProgram(CoolParser.ProgramContext ctx) {
-        ProgramNode p = new ProgramNode(1);
+        ProgramNode p = new ProgramNode(ctx.getStart().getLine());
         for (CoolParser.CoolClassContext c : ctx.coolClass()) {
             p.add((ClassNode) visitCoolClass(c));
         }
@@ -49,7 +49,7 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
         Symbol type_decl = StringTable.idtable.addString(ctx.TYPEID().getText());
         ExpressionNode expr = ctx.expr() != null ?
                 (ExpressionNode) visitExpr(ctx.expr()) :
-                new NoExpressionNode(1);
+                new NoExpressionNode(ctx.getStart().getLine());
         return new AttributeNode(ctx.getStart().getLine(), name, type_decl, expr);
     }
 
@@ -169,7 +169,7 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
             Symbol type_decl = StringTable.idtable.addString(ctx.TYPEID(i).getText());
             ExpressionNode init = (ctx.ASSIGN_OPERATOR(i) != null)
                     ? (ExpressionNode) visitExpr(ctx.expr(i))
-                    : new NoExpressionNode(1);
+                    : new NoExpressionNode(ctx.getStart().getLine());
             identifiers.add(identifier);
             type_decls.add(type_decl);
             inits.add(init);

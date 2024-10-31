@@ -76,20 +76,17 @@ STR_ESC:
     '\\'
     (
         'n'             { buf.append("\\n"); }
-      | 'r'             { buf.append("\\n"); }
       | 't'             { buf.append("\\t"); }
       | 'b'             { buf.append("\\b"); }
       | 'f'             { buf.append("\\f"); }
       | '\\'            { buf.append("\\\\"); }
       | '"'             { buf.append("\\\""); }
       | '\\' [0-9]+     { buf.append(getText()); }
-      | '\r'            { buf.append("\\r"); }
       | '\n'            { buf.append("\\n"); }
       | .               { buf.append(getText().substring(1)); } // Non-standard escapes
     )
     { stringLength++; }
     -> more;
-
 
 UNTERMINATED_STRING : '\n'
 { setText("Unterminated string constant"); }
