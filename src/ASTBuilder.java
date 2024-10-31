@@ -33,10 +33,8 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     public Tree visitMethod(CoolParser.MethodContext ctx) {
         Symbol name = StringTable.idtable.addString(ctx.OBJECTID().getText());
         List<FormalNode> formals = new ArrayList<>();
-        if (ctx.formal() != null) {
-            for (CoolParser.FormalContext f : ctx.formal()) {
-                formals.add((FormalNode) visitFormal(f));
-            }
+        for (CoolParser.FormalContext f : ctx.formal()) {
+            formals.add((FormalNode) visitFormal(f));
         }
         Symbol return_type = StringTable.idtable.addString(ctx.TYPEID().getText());
         ExpressionNode expr = (ExpressionNode) visitExpr(ctx.expr());
@@ -84,8 +82,8 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     public Tree visitStaticDispatch(CoolParser.StaticDispatchContext ctx) {
         List<ExpressionNode> actuals = new ArrayList<>();
         ExpressionNode expr = (ExpressionNode) visit(ctx.defaultExpr());
-        for (int i = 0; i < ctx.expr().size(); i++) {
-            actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
+        for (CoolParser.ExprContext e : ctx.expr()) {
+            actuals.add((ExpressionNode) visitExpr(e));
         }
         Symbol type_name = StringTable.idtable.addString(ctx.TYPEID().getText());
         Symbol method_name = StringTable.idtable.addString(ctx.OBJECTID().getText());
@@ -96,8 +94,8 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     public Tree visitDynamicDispatch(CoolParser.DynamicDispatchContext ctx) {
         List<ExpressionNode> actuals = new ArrayList<>();
         ExpressionNode expr = (ExpressionNode) visit(ctx.defaultExpr());
-        for (int i = 0; i < ctx.expr().size(); i++) {
-            actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
+        for (CoolParser.ExprContext e : ctx.expr()) {
+            actuals.add((ExpressionNode) visitExpr(e));
         }
         return new DispatchNode(ctx.getStart().getLine(), expr, StringTable.idtable.addString(ctx.OBJECTID().getText()), actuals);
     }
@@ -106,8 +104,8 @@ public class ASTBuilder extends CoolParserBaseVisitor<Tree> {
     public Tree visitMethodCall(CoolParser.MethodCallContext ctx) {
         List<ExpressionNode> actuals = new ArrayList<>();
         ExpressionNode expr = new ObjectNode(ctx.getStart().getLine(), StringTable.idtable.addString("self"));
-        for (int i = 0; i < ctx.expr().size(); i++) {
-            actuals.add((ExpressionNode) visitExpr(ctx.expr(i)));
+        for (CoolParser.ExprContext e : ctx.expr()) {
+            actuals.add((ExpressionNode) visitExpr(e));
         }
         return new DispatchNode(ctx.getStart().getLine(), expr, StringTable.idtable.addString(ctx.OBJECTID().getText()), actuals);
     }
