@@ -1,16 +1,16 @@
 class A {
 };
 
-class B inherits A {
+class B inherits Int {
 };
 
-class B {
+class C {
 };
 
 Class Main {
 	main() : Int {
 	 {
-	 5;
+	    5;
 	 }
 	};
 };

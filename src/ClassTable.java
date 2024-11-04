@@ -1,6 +1,5 @@
 import ast.*;
 
-import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -215,9 +214,14 @@ class ClassTable {
             if (classMap.containsKey(className)) {
                 Utilities.semantError(c).println("Class " + className + " was previously defined.");
             }
+            if (basicClasses.contains(parentName) && (
+                            parentName.equals(TreeConstants.Int)
+                            || parentName.equals(TreeConstants.Str)
+                            || parentName.equals(TreeConstants.Bool))) {
+                Utilities.semantError(c).println("Class " + className + " cannot inherit class " + parentName + "." );
+            }
 
             classMap.put(className, parentName);
-
         }
 
     }
