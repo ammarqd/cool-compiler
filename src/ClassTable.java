@@ -1,8 +1,10 @@
 import ast.*;
 
+import java.io.PrintStream;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-
+import java.util.Set;
 
 /**
  * This class may be used to contain the semantic information such as
@@ -10,6 +12,16 @@ import java.util.List;
  * here to provide a container for the supplied methods.
  */
 class ClassTable {
+
+    private HashMap<Symbol, Symbol> classMap = new HashMap<>();
+    private Set<Symbol> basicClasses = Set.of(
+            TreeConstants.Object_,
+            TreeConstants.IO,
+            TreeConstants.Int,
+            TreeConstants.Bool,
+            TreeConstants.Str
+    );
+
     /**
      * Creates data structures representing basic Cool classes (Object,
      * IO, Int, Bool, String).  Please note: as is this method does not
@@ -192,7 +204,22 @@ class ClassTable {
     }
 
     public ClassTable(List<ClassNode> cls) {
-    	/* fill this in */
+
+        installBasicClasses();
+
+        for (ClassNode c : cls) {
+
+            Symbol className = c.getName();
+            Symbol parentName = c.getParent();
+
+            if (classMap.containsKey(className)) {
+                Utilities.semantError(c).println("Class " + className + " was previously defined.");
+            }
+
+            classMap.put(className, parentName);
+
+        }
+
     }
 }
 
