@@ -3,7 +3,7 @@ A Compiler for the Cool programming language, written in Java and utilising ANTL
 
 - [x] Lexer (63/63 test cases passed!)
 - [x] Parser (71/71 test cases passed!)
-- [ ] Semantic Analysis
+- [ ] Semantic Analysis (WIP - Semant branch)
 - [ ] Code Generation
 
 <br>
