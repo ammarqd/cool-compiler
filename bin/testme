@@ -20,7 +20,7 @@ fi
 
 if [ $# -lt 1 ]; then
     echo Missing arguments. Specify what to test.
-    echo Usage: 
+    echo Usage:
     echo $0 stack lexer parser semant cgen
     exit 1
 fi
@@ -42,7 +42,7 @@ for component in "$@"; do
     touch $resultdir/summary.log
     exec > >(tee -i $resultdir/summary.log)
 
-    echo Testing $component 
+    echo Testing $component
     echo Testsuite in $testdir
     echo Results in $resultdir
 

@@ -1,9 +1,7 @@
 import ast.*;
 
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+
 
 /**
  * This class may be used to contain the semantic information such as
@@ -12,14 +10,8 @@ import java.util.Set;
  */
 class ClassTable {
 
-    private HashMap<Symbol, Symbol> classMap = new HashMap<>();
-    private Set<Symbol> basicClasses = Set.of(
-            TreeConstants.Object_,
-            TreeConstants.IO,
-            TreeConstants.Int,
-            TreeConstants.Bool,
-            TreeConstants.Str
-    );
+    private Map<Symbol, ClassNode> classMap = new HashMap<>();
+    private Map<Symbol, Symbol> inheritanceMap = new HashMap<>();
 
     /**
      * Creates data structures representing basic Cool classes (Object,
@@ -197,9 +189,14 @@ class ClassTable {
                 TreeConstants.Str,
                 new NoExpressionNode(0)));
 
-	/* Do somethind with Object_class, IO_class, Int_class,
+	/* Do something with Object_class, IO_class, Int_class,
            Bool_class, and Str_class here */
 
+        classMap.put(TreeConstants.Object_, Object_class);
+        classMap.put(TreeConstants.IO, IO_class);
+        classMap.put(TreeConstants.Int, Int_class);
+        classMap.put(TreeConstants.Bool, Bool_class);
+        classMap.put(TreeConstants.Str, Str_class);
     }
 
     public ClassTable(List<ClassNode> cls) {
@@ -207,24 +204,27 @@ class ClassTable {
         installBasicClasses();
 
         for (ClassNode c : cls) {
-
-            Symbol className = c.getName();
-            Symbol parentName = c.getParent();
-
-            if (classMap.containsKey(className)) {
-                Utilities.semantError(c).println("Class " + className + " was previously defined.");
+            if (classMap.containsKey(c.getName())) {
+                Utilities.semantError(c).println("Class " + c.getName() + " was previously defined.");
             }
-            if (basicClasses.contains(parentName) && (
-                            parentName.equals(TreeConstants.Int)
-                            || parentName.equals(TreeConstants.Str)
-                            || parentName.equals(TreeConstants.Bool))) {
-                Utilities.semantError(c).println("Class " + className + " cannot inherit class " + parentName + "." );
-            }
-
-            classMap.put(className, parentName);
+            classMap.put(c.getName(), c);
         }
 
+        Set<Symbol> nonInheritableClasses = Set.of(TreeConstants.Str, TreeConstants.Int, TreeConstants.Bool);
+
+        for (int i = cls.size() - 1; i >= 0; i--) {
+            ClassNode c = cls.get(i);
+            Symbol parent = c.getParent();
+
+            if (nonInheritableClasses.contains(parent)) {
+                Utilities.semantError(c).println("Class " + c.getName() + " cannot inherit class " + parent + ".");
+            } else if (!classMap.containsKey(parent) && !parent.equals(TreeConstants.No_class)) {
+                Utilities.semantError(c).println("Class " + c.getName() + " inherits from an undefined class " + parent + ".");
+            }
+
+            inheritanceMap.put(c.getName(), parent);
+        }
     }
 }
 
-    
+
