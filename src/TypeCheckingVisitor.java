@@ -38,7 +38,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, MyContext> {
         for (FeatureNode feature : node.getFeatures()) {
             feature.accept(this, context);
         }
-        return null;
+        return TreeConstants.SELF_TYPE;
     }
 
     @Override
@@ -123,5 +123,64 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, MyContext> {
     public Symbol visit(BoolConstNode node, MyContext context) {
         node.setType(TreeConstants.Bool);
         return TreeConstants.Bool;
+    }
+
+    @Override
+    public Symbol visit(ObjectNode node, MyContext context) {
+        Symbol name = node.getName();
+        
+        // Handle 'self' as a special case
+        if (name == TreeConstants.self) {
+            node.setType(TreeConstants.SELF_TYPE);
+            return TreeConstants.SELF_TYPE;
+        }
+        
+        // Look up the identifier in the symbol table
+        Symbol type = (Symbol) Semant.symtable.lookup(name);
+        
+        if (type == null) {
+            Utilities.semantError(context.getCurrentClass())
+                    .println("Undeclared identifier " + name);
+            node.setType(TreeConstants.No_type);
+            return TreeConstants.No_type;
+        }
+        
+        node.setType(type);
+        return type;
+    }
+
+    @Override
+    public Symbol visit(AttributeNode node, MyContext context) {
+        Symbol name = node.getName();
+        Symbol declaredType = node.getType_decl();
+        
+        // Check if attribute is named 'self'
+        if (name == TreeConstants.self) {
+            Utilities.semantError(context.getCurrentClass())
+                    .println("'self' cannot be the name of an attribute");
+            return TreeConstants.No_type;
+        }
+        
+        Symbol initType = visit(node.getInit(), context);
+        
+        // NoExpressionNode visitor will return null, so we only check type conformance
+        // when there is an initialization expression
+        if (initType != null && initType != declaredType) {
+            // Special handling for SELF_TYPE in initialization
+            if (!(initType == TreeConstants.SELF_TYPE && 
+                  declaredType == context.getCurrentClass().getName())) {
+                Utilities.semantError(context.getCurrentClass())
+                        .println("Type " + initType + 
+                                " of initialization expression does not conform to " +
+                                "declared type " + declaredType + 
+                                " of attribute " + name);
+                return TreeConstants.No_type;
+            }
+        }
+        
+        // Add attribute to symbol table
+        Semant.symtable.addId(name, declaredType);
+        
+        return TreeConstants.SELF_TYPE;
     }
 }

@@ -9,7 +9,7 @@ class Semant {
 
         classTable = new ClassTable(program.getClasses());
 
-        ScopeCheckingVisitor scopecheckVisitor = new ScopeCheckingVisitor(symtable);
+        ScopeCheckingVisitor scopecheckVisitor = new ScopeCheckingVisitor();
         program.accept(scopecheckVisitor, null);
         TypeCheckingVisitor typecheckVisitor = new TypeCheckingVisitor();
         program.accept(typecheckVisitor, null);

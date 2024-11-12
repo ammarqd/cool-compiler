@@ -1,4 +1,5 @@
 import ast.*;
+import jdk.jshell.execution.Util;
 
 import java.util.*;
 
@@ -10,8 +11,13 @@ import java.util.*;
  */
 class ClassTable {
 
-    private Map<Symbol, ClassNode> classMap = new HashMap<>();
-    private Map<Symbol, Symbol> inheritanceMap = new HashMap<>();
+    private static final Set<Symbol> NON_INHERITABLE_CLASSES = Set.of(
+        TreeConstants.Str,
+        TreeConstants.Int,
+        TreeConstants.Bool
+    );
+
+    private final Map<Symbol, ClassNode> classMap = new HashMap<>();
 
     /**
      * Creates data structures representing basic Cool classes (Object,
@@ -200,31 +206,28 @@ class ClassTable {
     }
 
     public ClassTable(List<ClassNode> cls) {
-
         installBasicClasses();
 
         for (ClassNode c : cls) {
             if (classMap.containsKey(c.getName())) {
                 Utilities.semantError(c).println("Class " + c.getName() + " was previously defined.");
+            } else {
+                classMap.put(c.getName(), c);
             }
-            classMap.put(c.getName(), c);
         }
-
-        Set<Symbol> nonInheritableClasses = Set.of(TreeConstants.Str, TreeConstants.Int, TreeConstants.Bool);
 
         for (int i = cls.size() - 1; i >= 0; i--) {
             ClassNode c = cls.get(i);
+            if (c != classMap.get(c.getName())) continue;
             Symbol parent = c.getParent();
-
-            if (nonInheritableClasses.contains(parent)) {
-                Utilities.semantError(c).println("Class " + c.getName() + " cannot inherit class " + parent + ".");
-            } else if (!classMap.containsKey(parent) && !parent.equals(TreeConstants.No_class)) {
+            if (!classMap.containsKey(parent) && !parent.equals(TreeConstants.No_class)) {
                 Utilities.semantError(c).println("Class " + c.getName() + " inherits from an undefined class " + parent + ".");
+            } else if (NON_INHERITABLE_CLASSES.contains(parent)) {
+                Utilities.semantError(c).println("Class " + c.getName() + " cannot inherit class " + parent + ".");
             }
-
-            inheritanceMap.put(c.getName(), parent);
         }
     }
+
 }
 
 

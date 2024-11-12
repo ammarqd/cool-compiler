@@ -16,6 +16,33 @@ class B {
     };
 };
 
+class B inherits A {
+};
+
+class Lol inherits Int {
+};
+
+Class B inherits Int {
+};
+
+class D inherits Blah {
+};
+
+class E inherits Int {
+};
+
+class F inherits D {
+};
+
+class G inherits Haha {
+};
+
+class H inherits G {
+};
+
+class A inherits String {
+};
+
 Class Main {
 	main() : Int {
 	   5 + 3
