@@ -126,30 +126,6 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, MyContext> {
     }
 
     @Override
-    public Symbol visit(ObjectNode node, MyContext context) {
-        Symbol name = node.getName();
-        
-        // Handle 'self' as a special case
-        if (name == TreeConstants.self) {
-            node.setType(TreeConstants.SELF_TYPE);
-            return TreeConstants.SELF_TYPE;
-        }
-        
-        // Look up the identifier in the symbol table
-        Symbol type = (Symbol) Semant.symtable.lookup(name);
-        
-        if (type == null) {
-            Utilities.semantError(context.getCurrentClass())
-                    .println("Undeclared identifier " + name);
-            node.setType(TreeConstants.No_type);
-            return TreeConstants.No_type;
-        }
-        
-        node.setType(type);
-        return type;
-    }
-
-    @Override
     public Symbol visit(AttributeNode node, MyContext context) {
         Symbol name = node.getName();
         Symbol declaredType = node.getType_decl();
@@ -177,9 +153,6 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, MyContext> {
                 return TreeConstants.No_type;
             }
         }
-        
-        // Add attribute to symbol table
-        Semant.symtable.addId(name, declaredType);
         
         return TreeConstants.SELF_TYPE;
     }

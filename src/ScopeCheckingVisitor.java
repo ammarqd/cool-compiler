@@ -1,14 +1,5 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
-import java.util.HashMap;
-import java.util.Map;
-
-enum Kind {
-    CLASS,
-    METHOD,
-    ATTRIBUTE,
-    VARIABLE
-}
 
 class ScopeContext {
     private final ClassNode currentClass;
@@ -33,85 +24,72 @@ class ScopeContext {
 }
 
 public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
-    private final Map<Kind, SymbolTable<Symbol>> tables;
-
-    public ScopeCheckingVisitor() {
-        tables = new HashMap<>();
-        for (Kind k : Kind.values()) {
-            tables.put(k, new SymbolTable<>());
-        }
-    }
-
+    
     @Override
     public Void visit(ProgramNode node, ScopeContext context) {
-        tables.get(Kind.CLASS).enterScope();
+        Semant.getTable(Semant.Kind.CLASS).enterScope();
+        
         for (ClassNode classNode : node.getClasses()) {
             classNode.accept(this, new ScopeContext(classNode));
         }
+        
+        Semant.getTable(Semant.Kind.CLASS).exitScope();
         return null;
     }
 
     @Override
     public Void visit(ClassNode node, ScopeContext context) {
-        tables.get(Kind.CLASS).addId(node.getName(), node.getName());
-        tables.get(Kind.METHOD).enterScope();
-        tables.get(Kind.ATTRIBUTE).enterScope();
+        Semant.getTable(Semant.Kind.METHOD).enterScope();
+        Semant.getTable(Semant.Kind.ATTRIBUTE).enterScope();
+        Semant.getTable(Semant.Kind.CLASS).addId(node.getName(), node.getName());
 
         for (FeatureNode feature : node.getFeatures()) {
             feature.accept(this, context);
         }
+        
+        Semant.getTable(Semant.Kind.METHOD).exitScope();
+        Semant.getTable(Semant.Kind.ATTRIBUTE).exitScope();
         return null;
     }
 
     @Override
     public Void visit(MethodNode node, ScopeContext context) {
         context.setCurrentFeature(node);
-        
-        if (tables.get(Kind.METHOD).probe(node.getName()) != null) {
+
+        if (Semant.getTable(Semant.Kind.METHOD).probe(node.getName()) != null) {
             Utilities.semantError(context.getCurrentClass())
-                .println("Method " + node.getName() + " is multiply defined");
+                    .println("Method " + node.getName() + " is multiply defined");
         } else {
-            tables.get(Kind.METHOD).addId(node.getName(), node.getReturn_type());
+            Semant.getTable(Semant.Kind.METHOD).addId(node.getName(), node.getReturn_type());
+            
+            Semant.getTable(Semant.Kind.VARIABLE).enterScope();
+            
+            for (FormalNode formal : node.getFormals()) {
+                formal.accept(this, context);
+            }
+            
+            if (node.getExpr() != null) {
+                node.getExpr().accept(this, context);
+            }
+            
+            Semant.getTable(Semant.Kind.VARIABLE).exitScope();
         }
-        
-        tables.get(Kind.VARIABLE).enterScope();
-        // Handle formals (parameters)
-        for (FormalNode formal : node.getFormals()) {
-            formal.accept(this, context);
-        }
-        
-        if (node.getExpr() != null) {
-            node.getExpr().accept(this, context);
-        }
-        tables.get(Kind.VARIABLE).exitScope();
         return null;
     }
 
     @Override
     public Void visit(AttributeNode node, ScopeContext context) {
-        context.setCurrentFeature(node);
-        
-        if (tables.get(Kind.ATTRIBUTE).probe(node.getName()) != null) {
+        if (Semant.getTable(Semant.Kind.ATTRIBUTE).probe(node.getName()) != null) {
             Utilities.semantError(context.getCurrentClass())
-                .println("Attribute " + node.getName() + " is multiply defined");
+                    .println("Attribute " + node.getName() + " is multiply defined");
         } else {
-            tables.get(Kind.ATTRIBUTE).addId(node.getName(), node.getType_decl());
+            Semant.getTable(Semant.Kind.ATTRIBUTE).addId(node.getName(), node.getType_decl());
         }
-
+        
         if (node.getInit() != null) {
             node.getInit().accept(this, context);
         }
-        return null;
-    }
-
-    @Override
-    public Void visit(FormalNode node, ScopeContext context) {
-        if (tables.get(Kind.VARIABLE).probe(node.getName()) != null) {
-            Utilities.semantError(context.getCurrentClass())
-                .println("Formal parameter " + node.getName() + " is multiply defined");
-        } else {
-            tables.get(Kind.VARIABLE).addId(node.getName(), node.getType_decl());
-        }
+        
         return null;
     }
 }
