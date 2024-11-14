@@ -11,10 +11,17 @@ import java.util.*;
  */
 class ClassTable {
 
+    private static final Set<Symbol> NON_REDEFINABLE_CLASSES = Set.of(
+            TreeConstants.IO,
+            TreeConstants.Str,
+            TreeConstants.Int,
+            TreeConstants.Bool
+    );
+
     private static final Set<Symbol> NON_INHERITABLE_CLASSES = Set.of(
-        TreeConstants.Str,
-        TreeConstants.Int,
-        TreeConstants.Bool
+            TreeConstants.Str,
+            TreeConstants.Int,
+            TreeConstants.Bool
     );
 
     private final Map<Symbol, ClassNode> classMap = new HashMap<>();
@@ -207,23 +214,68 @@ class ClassTable {
 
     public ClassTable(List<ClassNode> cls) {
         installBasicClasses();
+        checkClassRedefinitions(cls);
+        checkParentValidity(cls);
+        if (Utilities.errors()) {
+            Utilities.fatalError(Utilities.ErrorCode.ERROR_SEMANT);
+        }
+        checkInheritanceCycles(cls);
+    }
 
+    private void checkClassRedefinitions(List<ClassNode> cls) {
         for (ClassNode c : cls) {
-            if (classMap.containsKey(c.getName())) {
+            if (classMap.containsKey(c.getName()) && NON_REDEFINABLE_CLASSES.contains(c.getName())) {
+                Utilities.semantError(c).println("Redefinition of basic class " + c.getName() + ".");
+            } else if (classMap.containsKey(c.getName())) {
                 Utilities.semantError(c).println("Class " + c.getName() + " was previously defined.");
             } else {
                 classMap.put(c.getName(), c);
             }
         }
+    }
 
+    private void checkParentValidity(List<ClassNode> cls) {
         for (int i = cls.size() - 1; i >= 0; i--) {
             ClassNode c = cls.get(i);
-            if (c != classMap.get(c.getName())) continue;
+
+            // Skip errors for classes that had redefinition errors, first error takes priority
+            if (c != classMap.get(c.getName())) {
+                continue;
+            }
+
             Symbol parent = c.getParent();
             if (!classMap.containsKey(parent) && !parent.equals(TreeConstants.No_class)) {
                 Utilities.semantError(c).println("Class " + c.getName() + " inherits from an undefined class " + parent + ".");
             } else if (NON_INHERITABLE_CLASSES.contains(parent)) {
                 Utilities.semantError(c).println("Class " + c.getName() + " cannot inherit class " + parent + ".");
+            }
+        }
+    }
+
+    private void checkInheritanceCycles(List<ClassNode> cls) {
+        Set<Symbol> seenCycles = new HashSet<>();
+        for (int i = cls.size() - 1; i >= 0; i--) {
+            ClassNode c = cls.get(i);
+
+            Symbol className = c.getName();
+            if (seenCycles.contains(className)) continue;
+
+            Symbol parent = c.getParent();
+
+            // Check for self-inheritance
+            if (className.equals(parent)) {
+                Utilities.semantError(c).println("Class " + className + ", or an ancestor of " + className + ", is involved in an inheritance cycle.");
+                seenCycles.add(className);
+                continue;
+            }
+
+            // Check for mutual inheritance
+            ClassNode parentClass = classMap.get(parent);
+            if (parentClass != null && parentClass.getParent().equals(className)) {
+                Utilities.semantError(c).println("Class " + className + ", or an ancestor of " + className + ", is involved in an inheritance cycle.");
+                Utilities.semantError(c).println("Class " + parent + ", or an ancestor of " + parent + ", is involved in an inheritance cycle.");
+                seenCycles.add(className);
+                seenCycles.add(parent);
             }
         }
     }
