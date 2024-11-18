@@ -280,6 +280,22 @@ class ClassTable {
         }
     }
 
+    /**
+     * Checks if subtype conforms to supertype in Cool's single inheritance chain
+     */
+    public boolean isSubType(Symbol subtype, Symbol supertype) {
+        Symbol currentType = subtype;
+        while (currentType != null) {
+            if (currentType.equals(supertype)) {
+                return true;
+            }
+            System.err.println(currentType);
+            currentType = classMap.get(currentType).getParent();
+        }
+        System.err.println(currentType);
+        return false;
+    }
+
 }
 
 

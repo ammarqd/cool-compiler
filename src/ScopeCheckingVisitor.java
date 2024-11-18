@@ -3,93 +3,110 @@ import ast.visitor.BaseVisitor;
 
 class ScopeContext {
     private final ClassNode currentClass;
-    private FeatureNode currentFeature;  // Could be method or attribute
 
     public ScopeContext(ClassNode currentClass) {
         this.currentClass = currentClass;
-        this.currentFeature = null;
-    }
-
-    public void setCurrentFeature(FeatureNode feature) {
-        this.currentFeature = feature;
     }
 
     public ClassNode getCurrentClass() {
         return currentClass;
     }
-
-    public FeatureNode getCurrentFeature() {
-        return currentFeature;
-    }
 }
 
-public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
-    
+public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
+
     @Override
-    public Void visit(ProgramNode node, ScopeContext context) {
-        Semant.getTable(Semant.Kind.CLASS).enterScope();
-        
+    public Symbol visit(ProgramNode node, ScopeContext context) {
         for (ClassNode classNode : node.getClasses()) {
-            classNode.accept(this, new ScopeContext(classNode));
+            visit(classNode, new ScopeContext(classNode));
         }
-        
-        Semant.getTable(Semant.Kind.CLASS).exitScope();
         return null;
     }
 
     @Override
-    public Void visit(ClassNode node, ScopeContext context) {
+    public Symbol visit(ClassNode node, ScopeContext context) {
+
         Semant.getTable(Semant.Kind.METHOD).enterScope();
         Semant.getTable(Semant.Kind.ATTRIBUTE).enterScope();
-        Semant.getTable(Semant.Kind.CLASS).addId(node.getName(), node.getName());
 
         for (FeatureNode feature : node.getFeatures()) {
             feature.accept(this, context);
         }
-        
-        Semant.getTable(Semant.Kind.METHOD).exitScope();
+
         Semant.getTable(Semant.Kind.ATTRIBUTE).exitScope();
+        Semant.getTable(Semant.Kind.METHOD).exitScope();
         return null;
     }
 
     @Override
-    public Void visit(MethodNode node, ScopeContext context) {
-        context.setCurrentFeature(node);
+    public Symbol visit(MethodNode node, ScopeContext context) {
 
         if (Semant.getTable(Semant.Kind.METHOD).probe(node.getName()) != null) {
             Utilities.semantError(context.getCurrentClass())
-                    .println("Method " + node.getName() + " is multiply defined");
+                .println("Method " + node.getName() + " is multiply defined");
         } else {
             Semant.getTable(Semant.Kind.METHOD).addId(node.getName(), node.getReturn_type());
-            
             Semant.getTable(Semant.Kind.VARIABLE).enterScope();
-            
+
             for (FormalNode formal : node.getFormals()) {
-                formal.accept(this, context);
+                visit(formal, context);
             }
-            
-            if (node.getExpr() != null) {
-                node.getExpr().accept(this, context);
-            }
-            
+
+            visit(node.getExpr(), context);
             Semant.getTable(Semant.Kind.VARIABLE).exitScope();
         }
         return null;
     }
 
     @Override
-    public Void visit(AttributeNode node, ScopeContext context) {
+    public Symbol visit(AttributeNode node, ScopeContext context) {
+
         if (Semant.getTable(Semant.Kind.ATTRIBUTE).probe(node.getName()) != null) {
             Utilities.semantError(context.getCurrentClass())
-                    .println("Attribute " + node.getName() + " is multiply defined");
+                .println("Attribute " + node.getName() + " is multiply defined");
         } else {
             Semant.getTable(Semant.Kind.ATTRIBUTE).addId(node.getName(), node.getType_decl());
+            Semant.getTable(Semant.Kind.VARIABLE).enterScope();
+
+            visit(node.getInit(), context);
+
+            Semant.getTable(Semant.Kind.VARIABLE).exitScope();
         }
-        
-        if (node.getInit() != null) {
-            node.getInit().accept(this, context);
+        return null;
+    }
+
+    @Override
+    public Symbol visit(FormalNode node, ScopeContext context) {
+        if (Semant.getTable(Semant.Kind.VARIABLE).probe(node.getName()) != null) {
+            Utilities.semantError(context.getCurrentClass())
+                .println("Formal parameter " + node.getName() + " is multiply defined");
+        } else {
+            Semant.getTable(Semant.Kind.VARIABLE).addId(node.getName(), node.getType_decl());
         }
-        
+        return null;
+    }
+
+    @Override
+    public Symbol visit(LetNode node, ScopeContext context) {
+
+        if (Semant.getTable(Semant.Kind.VARIABLE).probe(node.getIdentifier()) != null) {
+            Utilities.semantError(context.getCurrentClass())
+                .println("Let variable " + node.getIdentifier() + " is multiply defined");
+        } else {
+            Semant.getTable(Semant.Kind.VARIABLE).enterScope();
+            Semant.getTable(Semant.Kind.VARIABLE).addId(node.getIdentifier(), node.getType_decl());
+
+            visit(node.getInit(), context);
+            visit(node.getBody(), context);
+
+            Semant.getTable(Semant.Kind.VARIABLE).exitScope();
+        }
+        return null;
+    }
+
+    @Override
+    public Symbol visit(ObjectNode node, ScopeContext context) {
+
         return null;
     }
 }

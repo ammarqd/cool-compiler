@@ -52,10 +52,8 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, MyContext> {
 
         if (bodyType != node.getReturn_type()) {
             Utilities.semantError(context.getCurrentClass())
-                    .println("Inferred return type " + bodyType + 
-                            " of method " + node.getName() +
-                            " does not conform to declared return type " + 
-                            node.getReturn_type());
+                    .println("Inferred return type " + bodyType + " of method " + node.getName()
+                            + " does not conform to declared return type " + node.getReturn_type());
             return TreeConstants.No_type;
         }
         
@@ -125,35 +123,4 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, MyContext> {
         return TreeConstants.Bool;
     }
 
-    @Override
-    public Symbol visit(AttributeNode node, MyContext context) {
-        Symbol name = node.getName();
-        Symbol declaredType = node.getType_decl();
-        
-        // Check if attribute is named 'self'
-        if (name == TreeConstants.self) {
-            Utilities.semantError(context.getCurrentClass())
-                    .println("'self' cannot be the name of an attribute");
-            return TreeConstants.No_type;
-        }
-        
-        Symbol initType = visit(node.getInit(), context);
-        
-        // NoExpressionNode visitor will return null, so we only check type conformance
-        // when there is an initialization expression
-        if (initType != null && initType != declaredType) {
-            // Special handling for SELF_TYPE in initialization
-            if (!(initType == TreeConstants.SELF_TYPE && 
-                  declaredType == context.getCurrentClass().getName())) {
-                Utilities.semantError(context.getCurrentClass())
-                        .println("Type " + initType + 
-                                " of initialization expression does not conform to " +
-                                "declared type " + declaredType + 
-                                " of attribute " + name);
-                return TreeConstants.No_type;
-            }
-        }
-        
-        return TreeConstants.SELF_TYPE;
-    }
 }
