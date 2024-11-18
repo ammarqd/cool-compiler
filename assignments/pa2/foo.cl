@@ -29,14 +29,15 @@ class A {
                 let c : String <- "blah3" in
                     let d : String <- "blah4", e : String <- "hello" in
                         let x : String <- a.concat(b).concat(c).concat(d) in
-                            x
+                            g
+
     };
 };
 
 class B {
 
-    bar() : String {
-        "a"
+    bar() : Object {
+        m
     };
 
     hello() : Int {

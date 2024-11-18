@@ -24,6 +24,19 @@ class ClassTable {
             TreeConstants.Bool
     );
 
+    private static final Set<Symbol> builtInMethods = Set.of(
+            TreeConstants.cool_abort,
+            TreeConstants.type_name,
+            TreeConstants.copy,
+            TreeConstants.length,
+            TreeConstants.concat,
+            TreeConstants.substr,
+            TreeConstants.out_string,
+            TreeConstants.out_int,
+            TreeConstants.in_string,
+            TreeConstants.in_int
+    );
+
     private final Map<Symbol, ClassNode> classMap = new HashMap<>();
 
     /**
@@ -294,6 +307,10 @@ class ClassTable {
         }
         System.err.println(currentType);
         return false;
+    }
+
+    public boolean isBuiltInMethod(Symbol methodName) {
+        return builtInMethods.contains(methodName);
     }
 
 }

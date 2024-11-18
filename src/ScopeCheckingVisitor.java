@@ -107,6 +107,55 @@ public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
     @Override
     public Symbol visit(ObjectNode node, ScopeContext context) {
 
+        Symbol name = node.getName();
+        if (name.equals(TreeConstants.self)) return TreeConstants.SELF_TYPE;
+
+        Symbol varResult = Semant.getTable(Semant.Kind.VARIABLE).lookup(name);
+        if (varResult != null) return varResult;
+
+        Symbol attrResult = Semant.getTable(Semant.Kind.ATTRIBUTE).lookup(name);
+        if (attrResult != null) return attrResult;
+
+        Symbol methodResult = Semant.getTable(Semant.Kind.METHOD).lookup(name);
+        if (methodResult != null) return methodResult;
+
+        Utilities.semantError(context.getCurrentClass().getFilename(), node)
+                .println("Undeclared identifier " + name);
         return null;
     }
+
+    @Override
+    public Symbol visit(DispatchNode node, ScopeContext context) {
+
+        visit(node.getExpr(), context);
+        
+        for (ExpressionNode actual : node.getActuals()) {
+            visit(actual, context);
+        }
+
+        if (Semant.getTable(Semant.Kind.METHOD).lookup(node.getName()) == null &&
+            !Semant.getClassTable().isBuiltInMethod(node.getName())) {
+            Utilities.semantError(context.getCurrentClass())
+                .println("Undeclared method " + node.getName());
+        }
+        
+        return null;
+    }
+
+    @Override
+    public Symbol visit(StaticDispatchNode node, ScopeContext context) {
+        visit(node.getExpr(), context);
+        
+        for (ExpressionNode actual : node.getActuals()) {
+            visit(actual, context);
+        }
+        
+        if (Semant.getTable(Semant.Kind.METHOD).lookup(node.getName()) == null) {
+            Utilities.semantError(context.getCurrentClass())
+                .println("Undeclared method " + node.getName());
+        }
+        
+        return null;
+    }
+
 }
