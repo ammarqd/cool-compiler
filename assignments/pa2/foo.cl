@@ -3,7 +3,7 @@ class Main {
     blah : String <- "foo";
 
     foo(a: Int): Int {
-        let b : Int <- a + 1 in {
+        let b : Int <- a in {
             x <- b;
             b;
         }
@@ -29,15 +29,15 @@ class A {
                 let c : String <- "blah3" in
                     let d : String <- "blah4", e : String <- "hello" in
                         let x : String <- a.concat(b).concat(c).concat(d) in
-                            g
+                            "a"
 
     };
 };
 
 class B {
 
-    bar() : Object {
-        m
+    bar() : String {
+        "a"
     };
 
     hello() : Int {

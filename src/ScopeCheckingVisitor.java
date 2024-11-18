@@ -60,7 +60,10 @@ public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
 
     @Override
     public Symbol visit(AttributeNode node, ScopeContext context) {
-
+        if (node.getName().equals(TreeConstants.self)) {
+            Utilities.semantError(context.getCurrentClass())
+                .println("'self' cannot be the name of an attribute");
+        }
         if (Semant.getTable(Semant.Kind.ATTRIBUTE).probe(node.getName()) != null) {
             Utilities.semantError(context.getCurrentClass())
                 .println("Attribute " + node.getName() + " is multiply defined");
@@ -77,6 +80,11 @@ public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
 
     @Override
     public Symbol visit(FormalNode node, ScopeContext context) {
+        if (node.getName().equals(TreeConstants.self)) {
+            Utilities.semantError(context.getCurrentClass())
+                .println("'self' cannot be the name of a formal parameter");
+        }
+
         if (Semant.getTable(Semant.Kind.VARIABLE).probe(node.getName()) != null) {
             Utilities.semantError(context.getCurrentClass())
                 .println("Formal parameter " + node.getName() + " is multiply defined");
@@ -88,6 +96,10 @@ public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
 
     @Override
     public Symbol visit(LetNode node, ScopeContext context) {
+        if (node.getIdentifier().equals(TreeConstants.self)) {
+            Utilities.semantError(context.getCurrentClass())
+                .println("'self' cannot be bound in a 'let' expression");
+        }
 
         if (Semant.getTable(Semant.Kind.VARIABLE).probe(node.getIdentifier()) != null) {
             Utilities.semantError(context.getCurrentClass())
@@ -128,7 +140,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
     public Symbol visit(DispatchNode node, ScopeContext context) {
 
         visit(node.getExpr(), context);
-        
+
         for (ExpressionNode actual : node.getActuals()) {
             visit(actual, context);
         }
@@ -138,23 +150,60 @@ public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
             Utilities.semantError(context.getCurrentClass())
                 .println("Undeclared method " + node.getName());
         }
-        
+
         return null;
     }
 
     @Override
     public Symbol visit(StaticDispatchNode node, ScopeContext context) {
         visit(node.getExpr(), context);
-        
+
         for (ExpressionNode actual : node.getActuals()) {
             visit(actual, context);
         }
-        
+
         if (Semant.getTable(Semant.Kind.METHOD).lookup(node.getName()) == null) {
             Utilities.semantError(context.getCurrentClass())
                 .println("Undeclared method " + node.getName());
         }
-        
+
+        return null;
+    }
+
+    @Override
+    public Symbol visit(BlockNode node, ScopeContext context) {
+        for (ExpressionNode expr : node.getExprs()) {
+            visit(expr, context);
+        }
+        return null;
+    }
+
+    @Override
+    public Symbol visit(CaseNode node, ScopeContext context) {
+        visit(node.getExpr(), context);
+
+        for (BranchNode branch : node.getCases()) {
+            if (branch.getName().equals(TreeConstants.self)) {
+                Utilities.semantError(context.getCurrentClass())
+                    .println("'self' cannot be bound in a 'case' branch");
+            }
+
+            Semant.getTable(Semant.Kind.VARIABLE).enterScope();
+            Semant.getTable(Semant.Kind.VARIABLE).addId(branch.getName(), branch.getType_decl());
+            visit(branch.getExpr(), context);
+            Semant.getTable(Semant.Kind.VARIABLE).exitScope();
+        }
+        return null;
+    }
+
+    @Override
+    public Symbol visit(AssignNode node, ScopeContext context) {
+        if (node.getName().equals(TreeConstants.self)) {
+            Utilities.semantError(context.getCurrentClass())
+                .println("Cannot assign to 'self'");
+        }
+
+        visit(node.getExpr(), context);
         return null;
     }
 

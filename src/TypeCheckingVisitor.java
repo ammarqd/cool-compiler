@@ -61,7 +61,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, MyContext> {
     }
 
     private Symbol checkBinaryOperation(Symbol left, Symbol right, MyContext context, String operation) {
-        if (!left.equals(TreeConstants.Int) || !right.equals(TreeConstants.Int)) {
+        if (!TreeConstants.Int.equals(left) || !TreeConstants.Int.equals(right)) {
             Utilities.semantError(context.getCurrentClass())
                     .println("non-Int arguments: " + left + " " + operation + " " + right);
             return null;
