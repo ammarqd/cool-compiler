@@ -302,10 +302,8 @@ class ClassTable {
             if (currentType.equals(supertype)) {
                 return true;
             }
-            System.err.println(currentType);
             currentType = classMap.get(currentType).getParent();
         }
-        System.err.println(currentType);
         return false;
     }
 

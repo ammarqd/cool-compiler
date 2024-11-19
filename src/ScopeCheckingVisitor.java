@@ -30,6 +30,18 @@ public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
         Semant.getTable(Semant.Kind.ATTRIBUTE).enterScope();
 
         for (FeatureNode feature : node.getFeatures()) {
+            if (feature instanceof MethodNode) {
+                MethodNode method = (MethodNode) feature;
+                if (Semant.getTable(Semant.Kind.METHOD).probe(method.getName()) != null) {
+                    Utilities.semantError(context.getCurrentClass())
+                        .println("Method " + method.getName() + " is multiply defined");
+                } else {
+                    Semant.getTable(Semant.Kind.METHOD).addId(method.getName(), method.getReturn_type());
+                }
+            }
+        }
+
+        for (FeatureNode feature : node.getFeatures()) {
             feature.accept(this, context);
         }
 
@@ -41,20 +53,15 @@ public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
     @Override
     public Symbol visit(MethodNode node, ScopeContext context) {
 
-        if (Semant.getTable(Semant.Kind.METHOD).probe(node.getName()) != null) {
-            Utilities.semantError(context.getCurrentClass())
-                .println("Method " + node.getName() + " is multiply defined");
-        } else {
-            Semant.getTable(Semant.Kind.METHOD).addId(node.getName(), node.getReturn_type());
-            Semant.getTable(Semant.Kind.VARIABLE).enterScope();
+        Semant.getTable(Semant.Kind.VARIABLE).enterScope();
 
-            for (FormalNode formal : node.getFormals()) {
-                visit(formal, context);
-            }
-
-            visit(node.getExpr(), context);
-            Semant.getTable(Semant.Kind.VARIABLE).exitScope();
+        for (FormalNode formal : node.getFormals()) {
+            visit(formal, context);
         }
+
+        visit(node.getExpr(), context);
+        Semant.getTable(Semant.Kind.VARIABLE).exitScope();
+
         return null;
     }
 
@@ -128,9 +135,6 @@ public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
         Symbol attrResult = Semant.getTable(Semant.Kind.ATTRIBUTE).lookup(name);
         if (attrResult != null) return attrResult;
 
-        Symbol methodResult = Semant.getTable(Semant.Kind.METHOD).lookup(name);
-        if (methodResult != null) return methodResult;
-
         Utilities.semantError(context.getCurrentClass().getFilename(), node)
                 .println("Undeclared identifier " + name);
         return null;
@@ -148,7 +152,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
         if (Semant.getTable(Semant.Kind.METHOD).lookup(node.getName()) == null &&
             !Semant.getClassTable().isBuiltInMethod(node.getName())) {
             Utilities.semantError(context.getCurrentClass())
-                .println("Undeclared method " + node.getName());
+                .println("Dispatch to undefined method " + node.getName());
         }
 
         return null;
@@ -164,7 +168,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Symbol, ScopeContext> {
 
         if (Semant.getTable(Semant.Kind.METHOD).lookup(node.getName()) == null) {
             Utilities.semantError(context.getCurrentClass())
-                .println("Undeclared method " + node.getName());
+                .println("Static dispatch to undefined method " + node.getName());
         }
 
         return null;

@@ -2,6 +2,14 @@ class Main {
     x : Int <- 5;
     blah : String <- "foo";
 
+    main(): Object {
+    {
+        5@Int.ghjfg();
+                foo(10);
+        gjhg();
+        }
+    };
+
     foo(a: Int): Int {
         let b : Int <- a in {
             x <- b;
@@ -9,8 +17,8 @@ class Main {
         }
     };
 
-    main(): Object {
-        foo(10)
+    foo() : Object {
+        5
     };
 
     blah() : String {
@@ -37,7 +45,7 @@ class A {
 class B {
 
     bar() : String {
-        "a"
+        self <- "a"
     };
 
     hello() : Int {
