@@ -1,5 +1,4 @@
 import ast.*;
-import jdk.jshell.execution.Util;
 
 import java.util.*;
 
@@ -293,22 +292,43 @@ class ClassTable {
         }
     }
 
-    /**
-     * Checks if subtype conforms to supertype in Cool's single inheritance chain
-     */
-    public boolean isSubType(Symbol subtype, Symbol supertype) {
-        Symbol currentType = subtype;
-        while (currentType != null) {
-            if (currentType.equals(supertype)) {
+    public boolean isSubType(Symbol sub, Symbol supertype) {
+        ClassNode currentClass = classMap.get(sub);
+        while (currentClass != null) {
+            if (currentClass.getName().equals(supertype)) {
                 return true;
             }
-            currentType = classMap.get(currentType).getParent();
+            currentClass = classMap.get(currentClass.getParent());
         }
         return false;
     }
 
     public boolean isBuiltInMethod(Symbol methodName) {
         return builtInMethods.contains(methodName);
+    }
+
+    public boolean isValidType(Symbol type) {
+        return classMap.containsKey(type);
+    }
+
+    public Symbol getLeastUpperBound(Symbol type1, Symbol type2) {
+
+        Set<Symbol> path1 = new HashSet<>();
+        ClassNode current = classMap.get(type1);
+        while (current != null) {
+            path1.add(current.getName());
+            current = classMap.get(current.getParent());
+        }
+
+        current = classMap.get(type2);
+        while (current != null) {
+            if (path1.contains(current.getName())) {
+                return current.getName();
+            }
+            current = classMap.get(current.getParent());
+        }
+
+        return TreeConstants.Object_;
     }
 
 }
