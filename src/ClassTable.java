@@ -292,6 +292,14 @@ class ClassTable {
         }
     }
 
+    public ClassNode getClass(Symbol type) {
+        return classMap.get(type);
+    }
+
+    public boolean isValidType(Symbol type) {
+        return classMap.containsKey(type);
+    }
+
     public boolean isSubType(Symbol sub, Symbol supertype) {
         ClassNode currentClass = classMap.get(sub);
         while (currentClass != null) {
@@ -305,10 +313,6 @@ class ClassTable {
 
     public boolean isBuiltInMethod(Symbol methodName) {
         return builtInMethods.contains(methodName);
-    }
-
-    public boolean isValidType(Symbol type) {
-        return classMap.containsKey(type);
     }
 
     public Symbol getLeastUpperBound(Symbol type1, Symbol type2) {
