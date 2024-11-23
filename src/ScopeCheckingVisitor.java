@@ -52,10 +52,6 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
     @Override
     public Void visit(MethodNode node, ScopeContext context) {
-        if (Semant.getTable(Semant.Kind.METHOD).probe(node.getName()) != null) {
-            Utilities.semantError(context.getCurrentClass())
-                .println("Method " + node.getName() + " is multiply defined.");
-        }
         
         Semant.getTable(Semant.Kind.VARIABLE).enterScope();
 
@@ -129,7 +125,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
     @Override
     public Void visit(ObjectNode node, ScopeContext context) {
-        if (Semant.getTable(Semant.Kind.VARIABLE).lookup(node.getName()) == null && 
+        if (Semant.getTable(Semant.Kind.VARIABLE).lookup(node.getName()) == null &&
             Semant.getTable(Semant.Kind.ATTRIBUTE).lookup(node.getName()) == null) {
             Utilities.semantError(context.getCurrentClass().getFilename(), node)
                     .println("Undeclared identifier " + node.getName() + ".");
