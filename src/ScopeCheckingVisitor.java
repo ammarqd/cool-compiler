@@ -17,9 +17,14 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
     @Override
     public Void visit(ProgramNode node, ScopeContext context) {
+        if (!Semant.getClassTable().isValidType(TreeConstants.Main)) {
+            System.err.println("Class Main is not defined");
+        }
+
         for (ClassNode classNode : node.getClasses()) {
             visit(classNode, new ScopeContext(classNode));
         }
+
         return null;
     }
 
