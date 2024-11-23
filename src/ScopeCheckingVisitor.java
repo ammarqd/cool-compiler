@@ -25,22 +25,30 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
     @Override
     public Void visit(ClassNode node, ScopeContext context) {
-
         Semant.getTable(Semant.Kind.METHOD).enterScope();
         Semant.getTable(Semant.Kind.ATTRIBUTE).enterScope();
 
+        // First pass: Register all methods and attributes
         for (FeatureNode feature : node.getFeatures()) {
-            if (feature instanceof MethodNode) {
-                MethodNode method = (MethodNode) feature;
+            if (feature instanceof MethodNode method) {
                 if (Semant.getTable(Semant.Kind.METHOD).probe(method.getName()) != null) {
                     Utilities.semantError(context.getCurrentClass())
-                        .println("Method " + method.getName() + " is multiply defined.");
+                            .println("Method " + method.getName() + " is multiply defined.");
                 } else {
                     Semant.getTable(Semant.Kind.METHOD).addId(method.getName(), method.getReturn_type());
                 }
             }
+            else if (feature instanceof AttributeNode attribute) {
+                if (Semant.getTable(Semant.Kind.ATTRIBUTE).probe(attribute.getName()) != null) {
+                    Utilities.semantError(context.getCurrentClass())
+                            .println("Attribute " + attribute.getName() + " is multiply defined.");
+                } else {
+                    Semant.getTable(Semant.Kind.ATTRIBUTE).addId(attribute.getName(), attribute.getType_decl());
+                }
+            }
         }
 
+        // Second pass: Check implementations
         for (FeatureNode feature : node.getFeatures()) {
             feature.accept(this, context);
         }
@@ -71,17 +79,14 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
             Utilities.semantError(context.getCurrentClass())
                 .println("'self' cannot be the name of an attribute.");
         }
-        if (Semant.getTable(Semant.Kind.ATTRIBUTE).probe(node.getName()) != null) {
-            Utilities.semantError(context.getCurrentClass())
-                .println("Attribute " + node.getName() + " is multiply defined.");
-        } else {
-            Semant.getTable(Semant.Kind.ATTRIBUTE).addId(node.getName(), node.getType_decl());
-            Semant.getTable(Semant.Kind.VARIABLE).enterScope();
 
-            visit(node.getInit(), context);
+        Semant.getTable(Semant.Kind.ATTRIBUTE).addId(node.getName(), node.getType_decl());
+        Semant.getTable(Semant.Kind.VARIABLE).enterScope();
 
-            Semant.getTable(Semant.Kind.VARIABLE).exitScope();
-        }
+        visit(node.getInit(), context);
+
+        Semant.getTable(Semant.Kind.VARIABLE).exitScope();
+
         return null;
     }
 
