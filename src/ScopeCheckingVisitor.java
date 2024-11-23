@@ -33,8 +33,8 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
         Semant.getTable(Semant.Kind.METHOD).enterScope();
         Semant.getTable(Semant.Kind.ATTRIBUTE).enterScope();
 
-        // First pass: Register all methods and attributes
         registerFeatures(node, context);
+        registerInheritedFeatures(node);
 
         if (node.getName().equals(TreeConstants.Main) &&
                 Semant.getTable(Semant.Kind.METHOD).probe(TreeConstants.main_meth) == null) {
@@ -70,6 +70,21 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                     Semant.getTable(Semant.Kind.ATTRIBUTE).addId(attribute.getName(), attribute.getType_decl());
                 }
             }
+        }
+    }
+
+    private void registerInheritedFeatures(ClassNode node) {
+        ClassNode current = Semant.getClassTable().getClass(node.getParent());
+        while (current != null) {
+            for (FeatureNode feature : current.getFeatures()) {
+                if (feature instanceof MethodNode method) {
+                    Semant.getTable(Semant.Kind.METHOD).addId(method.getName(), method.getReturn_type());
+                }
+                else if (feature instanceof AttributeNode attribute) {
+                    Semant.getTable(Semant.Kind.ATTRIBUTE).addId(attribute.getName(), attribute.getType_decl());
+                }
+            }
+            current = Semant.getClassTable().getClass(current.getParent());
         }
     }
 
