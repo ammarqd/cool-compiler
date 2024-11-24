@@ -28,7 +28,7 @@ class Main {
     };
 };
 
-class A {
+class A inherits B {
     y : String;
 
     bar(s: String): String {
@@ -36,7 +36,7 @@ class A {
             let b : String <- "blah2" in
                 let c : String <- "blah3" in
                     let d : String <- "blah4", e : String <- "hello" in
-                        let x : String <- a.concat(b).concat(c).concat(d) in
+                        let y : String <- a.concat(b).concat(c).concat(d) in
                             "a"
 
     };
@@ -48,8 +48,32 @@ class B {
         self <- "a"
     };
 
+    bar() : Int {
+        5
+    };
+
     hello() : Int {
         3
+    };
+
+};
+
+class C {
+
+    zap() : String {
+        "a"
+    };
+
+};
+
+class D inherits C {
+
+    beepboop() : Int {
+        5
+    };
+
+    beepboop() : String {
+        "a"
     };
 
 };
