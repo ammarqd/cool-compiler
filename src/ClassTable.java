@@ -10,6 +10,8 @@ import java.util.*;
  */
 class ClassTable {
 
+    private final Map<Symbol, ArrayList<ClassNode>> classMap = new HashMap<>();
+
     private static final Set<Symbol> NON_REDEFINABLE_CLASSES = Set.of(
             TreeConstants.IO,
             TreeConstants.Str,
@@ -35,8 +37,6 @@ class ClassTable {
             TreeConstants.in_string,
             TreeConstants.in_int
     );
-
-    private final Map<Symbol, ClassNode> classMap = new HashMap<>();
 
     /**
      * Creates data structures representing basic Cool classes (Object,
@@ -217,11 +217,17 @@ class ClassTable {
 	/* Do something with Object_class, IO_class, Int_class,
            Bool_class, and Str_class here */
 
-        classMap.put(TreeConstants.Object_, Object_class);
-        classMap.put(TreeConstants.IO, IO_class);
-        classMap.put(TreeConstants.Int, Int_class);
-        classMap.put(TreeConstants.Bool, Bool_class);
-        classMap.put(TreeConstants.Str, Str_class);
+        classMap.put(TreeConstants.Object_, new ArrayList<>(Arrays.asList(
+                IO_class,
+                Str_class,
+                Int_class,
+                Bool_class
+        )));
+
+        classMap.put(TreeConstants.IO, new ArrayList<>());
+        classMap.put(TreeConstants.Str, null);
+        classMap.put(TreeConstants.Int, null);
+        classMap.put(TreeConstants.Bool, null);
     }
 
     public ClassTable(List<ClassNode> cls) {
@@ -236,103 +242,110 @@ class ClassTable {
 
     private void checkClassRedefinitions(List<ClassNode> cls) {
         for (ClassNode c : cls) {
-            if (classMap.containsKey(c.getName()) && NON_REDEFINABLE_CLASSES.contains(c.getName())) {
-                Utilities.semantError(c).println("Redefinition of basic class " + c.getName() + ".");
-            } else if (classMap.containsKey(c.getName())) {
-                Utilities.semantError(c).println("Class " + c.getName() + " was previously defined.");
-            } else {
-                classMap.put(c.getName(), c);
+            Symbol className = c.getName();
+            if (classMap.containsKey(className)) {
+                if (NON_REDEFINABLE_CLASSES.contains(className)) {
+                    Utilities.semantError(c).println("Redefinition of basic class " + className + ".");
+                } else {
+                    Utilities.semantError(c).println("Class " + className + " was previously defined.");
+                }
+                classMap.put(className, null); // mark as error, to avoid repeat errors
+                continue;
             }
+            classMap.put(className, new ArrayList<>());
         }
     }
 
     private void checkParentValidity(List<ClassNode> cls) {
         for (int i = cls.size() - 1; i >= 0; i--) {
             ClassNode c = cls.get(i);
+            Symbol className = c.getName();
+            Symbol parent = c.getParent();
 
-            // Skip errors for classes that had redefinition errors, first error takes priority
-            if (c != classMap.get(c.getName())) {
+            if (classMap.get(className) == null) { // avoid repeat errors
                 continue;
             }
 
-            Symbol parent = c.getParent();
             if (!classMap.containsKey(parent) && !parent.equals(TreeConstants.No_class)) {
-                Utilities.semantError(c).println("Class " + c.getName() + " inherits from an undefined class " + parent + ".");
-            } else if (NON_INHERITABLE_CLASSES.contains(parent)) {
-                Utilities.semantError(c).println("Class " + c.getName() + " cannot inherit class " + parent + ".");
+                Utilities.semantError(c).println("Class " + className + " inherits from an undefined class " + parent + ".");
+                continue;
+            }
+
+            if (NON_INHERITABLE_CLASSES.contains(parent)) {
+                Utilities.semantError(c).println("Class " + className + " cannot inherit class " + parent + ".");
+                continue;
+            }
+
+            if (classMap.get(parent) != null) {
+                classMap.get(parent).add(c);
             }
         }
     }
 
     private void checkInheritanceCycles(List<ClassNode> cls) {
-        Set<Symbol> seenCycles = new HashSet<>();
+        Set<Symbol> cycleClasses = new HashSet<>();
+        Set<Symbol> visited = new HashSet<>();
+        Set<Symbol> path = new HashSet<>();
+
+        for (ClassNode c : cls) {
+            if (detectCycles(c.getName(), visited, path, cycleClasses)) {
+                markDescendants(c.getName(), visited, cycleClasses);
+            }
+        }
+
         for (int i = cls.size() - 1; i >= 0; i--) {
             ClassNode c = cls.get(i);
-
-            Symbol className = c.getName();
-            if (seenCycles.contains(className)) continue;
-
-            Symbol parent = c.getParent();
-
-            // Check for self-inheritance
-            if (className.equals(parent)) {
-                Utilities.semantError(c).println("Class " + className + ", or an ancestor of " + className + ", is involved in an inheritance cycle.");
-                seenCycles.add(className);
-                continue;
-            }
-
-            // Check for mutual inheritance
-            ClassNode parentClass = classMap.get(parent);
-            if (parentClass != null && parentClass.getParent().equals(className)) {
-                Utilities.semantError(c).println("Class " + className + ", or an ancestor of " + className + ", is involved in an inheritance cycle.");
-                Utilities.semantError(c).println("Class " + parent + ", or an ancestor of " + parent + ", is involved in an inheritance cycle.");
-                seenCycles.add(className);
-                seenCycles.add(parent);
+            if (cycleClasses.contains(c.getName())) {
+                Utilities.semantError(c).println("Class " + c.getName() + ", or an ancestor of " + c.getName() + ", is involved in an inheritance cycle.");
             }
         }
     }
 
-    public ClassNode getClass(Symbol type) {
-        return classMap.get(type);
+    private boolean detectCycles(Symbol currentClass, Set<Symbol> visited, Set<Symbol> path, Set<Symbol> cycleClasses) {
+
+        if (path.contains(currentClass)) {
+            cycleClasses.addAll(path);
+            return true;
+        }
+
+        if (visited.contains(currentClass)) {
+            return false;
+        }
+
+        visited.add(currentClass);
+        path.add(currentClass);
+
+        for (ClassNode child : classMap.get(currentClass)) {
+            if (detectCycles(child.getName(), visited, path, cycleClasses)) {
+                return true;
+            }
+        }
+
+        path.remove(currentClass);
+        return false;
+    }
+
+    private void markDescendants(Symbol currentClass, Set<Symbol> visited, Set<Symbol> cycleClasses) {
+        for (ClassNode child : classMap.get(currentClass)) {
+            Symbol childName = child.getName();
+            if (!cycleClasses.contains(childName)) {
+                visited.add(childName);
+                cycleClasses.add(childName);
+                markDescendants(childName, visited, cycleClasses);
+            }
+        }
     }
 
     public boolean isValidType(Symbol type) {
         return classMap.containsKey(type);
     }
 
-    public boolean isSubType(Symbol sub, Symbol supertype) {
-        ClassNode currentClass = classMap.get(sub);
-        while (currentClass != null) {
-            if (currentClass.getName().equals(supertype)) {
-                return true;
-            }
-            currentClass = classMap.get(currentClass.getParent());
-        }
-        return false;
+    public Map<Symbol, ArrayList<ClassNode>> getClassMap() {
+        return classMap;
     }
 
     public boolean isBuiltInMethod(Symbol methodName) {
         return builtInMethods.contains(methodName);
-    }
-
-    public Symbol getLeastUpperBound(Symbol type1, Symbol type2) {
-
-        Set<Symbol> path1 = new HashSet<>();
-        ClassNode current = classMap.get(type1);
-        while (current != null) {
-            path1.add(current.getName());
-            current = classMap.get(current.getParent());
-        }
-
-        current = classMap.get(type2);
-        while (current != null) {
-            if (path1.contains(current.getName())) {
-                return current.getName();
-            }
-            current = classMap.get(current.getParent());
-        }
-
-        return TreeConstants.Object_;
     }
 
 }

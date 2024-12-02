@@ -1,31 +1,13 @@
-class Main {
-    x : Int <- 5;
-    blah : String <- "foo";
+class LOL {
 
-    main(): Object {
-    {
-        5@Int.ghjfg();
-                foo(10);
-        gjhg();
-        }
+    that() : Int {
+        0
     };
 
-    foo(a: Int): Int {
-        let b : Int <- a in {
-            x <- b;
-            b;
-        }
+    that() : Int {
+        0
     };
 
-    foo() : Object {
-        5
-    };
-
-    blah() : String {
-        let hello : String <- "hi" in {
-            "hola";
-        }
-    };
 };
 
 class A inherits B {
@@ -40,6 +22,31 @@ class A inherits B {
                             "a"
 
     };
+
+    bar() : String {
+        "a"
+    };
+
+    what() : Int {
+        7
+    };
+
+    what() : Int {
+        7
+    };
+
+};
+
+class Test {
+
+    yo() : String {
+        "a"
+    };
+
+    yo() : String {
+        "a"
+    };
+
 };
 
 class B {
@@ -56,11 +63,24 @@ class B {
         3
     };
 
+    lol() : Int {
+        7
+    };
+
+    lol() : Int {
+        8
+    };
+
 };
 
-class C {
 
-    zap() : String {
+class E inherits D {
+
+    lmao() : Int {
+        5
+    };
+
+    lmao() : String {
         "a"
     };
 
@@ -74,6 +94,42 @@ class D inherits C {
 
     beepboop() : String {
         "a"
+    };
+
+};
+
+class Z inherits Y {
+
+    why() : Int {
+        5
+    };
+
+    why() : String {
+        "a"
+    };
+
+};
+
+class Y inherits C {
+
+    rofl() : Int {
+        5
+    };
+
+    rofl() : String {
+        "a"
+    };
+
+};
+
+class C {
+
+    zap() : String {
+        "a"
+    };
+
+    zap() : Int {
+        7
     };
 
 };
