@@ -288,8 +288,8 @@ class ClassTable {
         Set<Symbol> path = new HashSet<>();
 
         for (ClassNode c : cls) {
-            if (detectCycles(c.getName(), visited, path, cycleClasses)) {
-                markDescendants(c.getName(), visited, cycleClasses);
+            if (!visited.contains(c.getName())) {
+                detectCycles(c.getName(), visited, path, cycleClasses);
             }
         }
 
@@ -301,37 +301,37 @@ class ClassTable {
         }
     }
 
-    private boolean detectCycles(Symbol currentClass, Set<Symbol> visited, Set<Symbol> path, Set<Symbol> cycleClasses) {
+    private boolean detectCycles(Symbol className, Set<Symbol> visited, Set<Symbol> path, Set<Symbol> cycleClasses) {
 
-        if (path.contains(currentClass)) {
+        if (path.contains(className)) {
             cycleClasses.addAll(path);
+            markDescendants(className, cycleClasses);
             return true;
         }
 
-        if (visited.contains(currentClass)) {
+        if (visited.contains(className)) {
             return false;
         }
 
-        visited.add(currentClass);
-        path.add(currentClass);
+        visited.add(className);
+        path.add(className);
 
-        for (ClassNode child : classMap.get(currentClass)) {
+        for (ClassNode child : classMap.get(className)) {
             if (detectCycles(child.getName(), visited, path, cycleClasses)) {
                 return true;
             }
         }
 
-        path.remove(currentClass);
+        path.remove(className);
         return false;
     }
 
-    private void markDescendants(Symbol currentClass, Set<Symbol> visited, Set<Symbol> cycleClasses) {
+    private void markDescendants(Symbol currentClass, Set<Symbol> cycleClasses) {
         for (ClassNode child : classMap.get(currentClass)) {
             Symbol childName = child.getName();
             if (!cycleClasses.contains(childName)) {
-                visited.add(childName);
                 cycleClasses.add(childName);
-                markDescendants(childName, visited, cycleClasses);
+                markDescendants(childName, cycleClasses);
             }
         }
     }
