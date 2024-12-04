@@ -3,20 +3,16 @@ import ast.Symbol;
 
 class Semant {
 
-    private static ClassTable classTable;
-    private static SymbolTable<Symbol> symTable;
-
-    public static ClassTable getClassTable() {
-        return classTable;
-    }
-
-    public static SymbolTable<Symbol> getTable() {
-        return symTable;
-    }
+    public static ClassTable classTable;
+    public static SymbolTable<Symbol> symTable;
 
     public static void analyze(ProgramNode program) {
         classTable = new ClassTable(program.getClasses());
         symTable = new SymbolTable<>();
+
+        if (Utilities.errors()) {
+            Utilities.fatalError(Utilities.ErrorCode.ERROR_SEMANT);
+        }
 
         ScopeCheckingVisitor scopecheckVisitor = new ScopeCheckingVisitor();
         program.accept(scopecheckVisitor, null);

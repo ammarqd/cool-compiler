@@ -76,14 +76,14 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                     .println("No 'main' method in class Main.");
         }
 
-        Semant.symtable.enterScope();
+        Semant.symTable.enterScope();
 
         // Second pass: Check implementations
         for (FeatureNode feature : node.getFeatures()) {
             feature.accept(this, context);
         }
 
-        Semant.symtable.exitScope();
+        Semant.symTable.exitScope();
 
         return null;
     }
@@ -91,7 +91,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     @Override
     public Void visit(MethodNode node, ScopeContext context) {
 
-        Semant.symtable.enterScope();
+        Semant.symTable.enterScope();
 
         for (FormalNode formal : node.getFormals()) {
             visit(formal, context);
@@ -99,7 +99,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
         visit(node.getExpr(), context);
 
-        Semant.symtable.exitScope();
+        Semant.symTable.exitScope();
 
         return null;
     }
@@ -112,7 +112,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                     .println("'self' cannot be the name of an attribute.");
         }
 
-        Semant.symtable.addId(node.getName(), node.getType_decl());
+        Semant.symTable.addId(node.getName(), node.getType_decl());
 
         visit(node.getInit(), context);
 
@@ -127,11 +127,11 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                     .println("'self' cannot be the name of a formal parameter.");
         }
 
-        if (Semant.symtable.probe(node.getName()) != null) {
+        if (Semant.symTable.probe(node.getName()) != null) {
             Utilities.semantError(context.getCurrentClass())
                     .println("Formal parameter " + node.getName() + " is multiply defined.");
         } else {
-            Semant.symtable.addId(node.getName(), node.getType_decl());
+            Semant.symTable.addId(node.getName(), node.getType_decl());
         }
         return null;
     }
@@ -144,17 +144,17 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                     .println("'self' cannot be bound in a 'let' expression.");
         }
 
-        if (Semant.symtable.probe(node.getIdentifier()) != null) {
+        if (Semant.symTable.probe(node.getIdentifier()) != null) {
             Utilities.semantError(context.getCurrentClass())
                     .println("Let variable " + node.getIdentifier() + " is multiply defined.");
         } else {
-            Semant.symtable.enterScope();
-            Semant.symtable.addId(node.getIdentifier(), node.getType_decl());
+            Semant.symTable.enterScope();
+            Semant.symTable.addId(node.getIdentifier(), node.getType_decl());
 
             visit(node.getInit(), context);
             visit(node.getBody(), context);
 
-            Semant.symtable.exitScope();
+            Semant.symTable.exitScope();
         }
         return null;
     }
@@ -163,8 +163,8 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     @Override
     public Void visit(ObjectNode node, ScopeContext context) {
 
-        if (Semant.symtable.lookup(node.getName()) == null &&
-                Semant.symtable.lookup(node.getName()) == null) {
+        if (Semant.symTable.lookup(node.getName()) == null &&
+                Semant.symTable.lookup(node.getName()) == null) {
             Utilities.semantError(context.getCurrentClass().getFilename(), node)
                     .println("Undeclared identifier " + node.getName() + ".");
         }
@@ -226,10 +226,10 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                         .println("'self' cannot be bound in a 'case' branch.");
             }
 
-            Semant.symtable.enterScope();
-            Semant.symtable.addId(branch.getName(), branch.getType_decl());
+            Semant.symTable.enterScope();
+            Semant.symTable.addId(branch.getName(), branch.getType_decl());
             visit(branch.getExpr(), context);
-            Semant.symtable.exitScope();
+            Semant.symTable.exitScope();
         }
         return null;
     }
