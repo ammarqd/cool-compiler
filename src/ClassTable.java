@@ -249,7 +249,7 @@ class ClassTable {
                 } else {
                     Utilities.semantError(c).println("Class " + className + " was previously defined.");
                 }
-                classMap.put(className, null); // mark as error, to avoid repeat errors
+                classMap.put(className, null); // mark as null to avoid repeat errors, first error takes priority
                 continue;
             }
             classMap.put(className, new ArrayList<>());
@@ -262,7 +262,7 @@ class ClassTable {
             Symbol className = c.getName();
             Symbol parent = c.getParent();
 
-            if (classMap.get(className) == null) { // avoid repeat errors
+            if (classMap.get(className) == null) { // skip classes that already had errors
                 continue;
             }
 
@@ -285,11 +285,10 @@ class ClassTable {
     private void checkInheritanceCycles(List<ClassNode> cls) {
         Set<Symbol> cycleClasses = new HashSet<>();
         Set<Symbol> visited = new HashSet<>();
-        Set<Symbol> path = new HashSet<>();
 
         for (ClassNode c : cls) {
             if (!visited.contains(c.getName())) {
-                detectCycles(c.getName(), visited, path, cycleClasses);
+                detectCycles(c.getName(), visited, cycleClasses);
             }
         }
 
@@ -301,37 +300,24 @@ class ClassTable {
         }
     }
 
-    private boolean detectCycles(Symbol className, Set<Symbol> visited, Set<Symbol> path, Set<Symbol> cycleClasses) {
-
-        if (path.contains(className)) {
-            cycleClasses.addAll(path);
-            markDescendants(className, cycleClasses);
-            return true;
-        }
+    private void detectCycles(Symbol className, Set<Symbol> visited, Set<Symbol> cycleClasses) {
 
         if (visited.contains(className)) {
-            return false;
+            markDescendants(className, cycleClasses);
+            return;
         }
 
         visited.add(className);
-        path.add(className);
 
         for (ClassNode child : classMap.get(className)) {
-            if (detectCycles(child.getName(), visited, path, cycleClasses)) {
-                return true;
-            }
+            detectCycles(child.getName(), visited, cycleClasses);
         }
-
-        path.remove(className);
-        return false;
     }
 
     private void markDescendants(Symbol currentClass, Set<Symbol> cycleClasses) {
         for (ClassNode child : classMap.get(currentClass)) {
-            Symbol childName = child.getName();
-            if (!cycleClasses.contains(childName)) {
-                cycleClasses.add(childName);
-                markDescendants(childName, cycleClasses);
+            if (cycleClasses.add(child.getName())) {
+                markDescendants(child.getName(), cycleClasses);
             }
         }
     }
