@@ -1,9 +1,9 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
+import com.sun.jdi.Method;
+import jdk.jshell.execution.Util;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 class ScopeContext {
     private final ClassNode currentClass;
@@ -16,26 +16,6 @@ class ScopeContext {
         this.classTable = classTable;
         this.methodMap = new HashMap<>();
         this.classMap = classTable.getClassMap();
-        registerInheritedMethods(currentClass);
-        registerMethods();
-    }
-
-    private void registerInheritedMethods(ClassNode node) {
-        Map<Symbol, ArrayList<ClassNode>> classMap = classTable.getClassMap();
-
-    }
-
-    private void registerMethods() {
-        for (FeatureNode feature : currentClass.getFeatures()) {
-            if (feature instanceof MethodNode method) {
-                if (methodMap.get(method.getName()) != null) {
-                    Utilities.semantError(currentClass)
-                            .println("Method " + method.getName() + " is multiply defined.");
-                } else {
-                    methodMap.put(method.getName(), method);
-                }
-            }
-        }
     }
 
     public ClassNode getCurrentClass() {
@@ -53,6 +33,46 @@ class ScopeContext {
 }
 
 public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
+
+    public ScopeCheckingVisitor() {
+        ArrayList<ClassNode> rootClasses = Semant.classTable.getClassMap().get(TreeConstants.Object_);
+        for (int i = rootClasses.size() - 1; i >= 3; i--) { // Skip classes that disallow inheritance: String, Int, Bool
+            HashMap<Symbol, MethodNode> methodMap = new HashMap<>();
+            for (FeatureNode feature : rootClasses.get(i).getFeatures()) {
+                if (feature instanceof MethodNode method) {
+                    if (!methodMap.containsKey(method.getName())) {
+                        methodMap.put(method.getName(), method);
+                    } else {
+                        Utilities.semantError(rootClasses.get(i)).println("Method " + method.getName()
+                        + "is multiply defined.");
+                    }
+                }
+            }
+            registerInheritedMethods(rootClasses.get(i), methodMap);
+        }
+    }
+
+    private void registerInheritedMethods(ClassNode classNode, HashMap<Symbol, MethodNode> methodMap) {
+        for (ClassNode className : Semant.classTable.getClassMap().get(classNode.getName())) {
+            Set<Symbol> seenMethods = new HashSet<>();
+            for (FeatureNode feature : className.getFeatures()) {
+                if (feature instanceof MethodNode method) {
+                    if (!methodMap.containsKey(method.getName())) {
+                        methodMap.put(method.getName(), method);
+                    } else if (seenMethods.contains(method.getName())) {
+                        Utilities.semantError(className).println("Method " + method.getName()
+                                + " is multiply defined.");
+                    } else if (methodMap.get(method.getName()).getReturn_type() != method.getReturn_type()) {
+                            Utilities.semantError(className).println("In redefined method " + method.getName()
+                                    + ", return type " + method.getReturn_type() + " is different from original return type "
+                                    + methodMap.get(method.getName()).getReturn_type() + ".");
+                    }
+                    seenMethods.add(method.getName());
+                }
+            }
+            registerInheritedMethods(className, methodMap);
+        }
+    }
 
     @Override
     public Void visit(ProgramNode node, ScopeContext context) {
