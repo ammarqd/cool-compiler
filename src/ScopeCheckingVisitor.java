@@ -55,17 +55,23 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     private void registerInheritedMethods(ClassNode classNode, HashMap<Symbol, MethodNode> methodMap) {
         for (ClassNode className : Semant.classTable.getClassMap().get(classNode.getName())) {
             Set<Symbol> seenMethods = new HashSet<>();
+            boolean priorityError = false;
             for (FeatureNode feature : className.getFeatures()) {
                 if (feature instanceof MethodNode method) {
                     if (!methodMap.containsKey(method.getName())) {
                         methodMap.put(method.getName(), method);
-                    } else if (seenMethods.contains(method.getName())) {
+                    } else if (seenMethods.contains(method.getName()) && !priorityError) {
                         Utilities.semantError(className).println("Method " + method.getName()
                                 + " is multiply defined.");
                     } else if (methodMap.get(method.getName()).getReturn_type() != method.getReturn_type()) {
                             Utilities.semantError(className).println("In redefined method " + method.getName()
                                     + ", return type " + method.getReturn_type() + " is different from original return type "
                                     + methodMap.get(method.getName()).getReturn_type() + ".");
+                            priorityError = true;
+                    } else if (method.getFormals().size() != methodMap.get(method.getName()).getFormals().size()) {
+                        Utilities.semantError(className).println("Incompatible number of formal parameters in redefined method"
+                        + method.getName());
+                        priorityError = true;
                     }
                     seenMethods.add(method.getName());
                 }
@@ -77,7 +83,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     @Override
     public Void visit(ProgramNode node, ScopeContext context) {
         if (!Semant.classTable.isValidType(TreeConstants.Main)) {
-            Utilities.semantError().println("Class Main is not defined");
+            Utilities.semantError().println("Class Main is not defined.");
         }
 
         for (ClassNode classNode : node.getClasses()) {
