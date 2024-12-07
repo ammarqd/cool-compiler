@@ -285,10 +285,11 @@ class ClassTable {
     private void checkInheritanceCycles(List<ClassNode> cls) {
         Set<Symbol> cycleClasses = new HashSet<>();
         Set<Symbol> visited = new HashSet<>();
+        Set<Symbol> path = new HashSet<>();
 
         for (ClassNode c : cls) {
             if (!visited.contains(c.getName())) {
-                detectCycles(c.getName(), visited, cycleClasses);
+                detectCycles(c.getName(), visited, path, cycleClasses);
             }
         }
 
@@ -300,18 +301,25 @@ class ClassTable {
         }
     }
 
-    private void detectCycles(Symbol className, Set<Symbol> visited, Set<Symbol> cycleClasses) {
+    private void detectCycles(Symbol className, Set<Symbol> visited, Set<Symbol> path, Set<Symbol> cycleClasses) {
 
-        if (visited.contains(className)) {
+        if (path.contains(className)) {
             markDescendants(className, cycleClasses);
             return;
         }
 
+        if (visited.contains(className)) {
+            return;
+        }
+
         visited.add(className);
+        path.add(className);
 
         for (ClassNode child : classMap.get(className)) {
-            detectCycles(child.getName(), visited, cycleClasses);
+            detectCycles(child.getName(), visited, path, cycleClasses);
         }
+
+        path.remove(className);
     }
 
     private void markDescendants(Symbol currentClass, Set<Symbol> cycleClasses) {
