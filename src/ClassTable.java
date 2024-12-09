@@ -217,11 +217,13 @@ class ClassTable {
 	/* Do something with Object_class, IO_class, Int_class,
            Bool_class, and Str_class here */
 
+        classMap.put(TreeConstants.No_class, new ArrayList<>(List.of(Object_class)));
+
         classMap.put(TreeConstants.Object_, new ArrayList<>(Arrays.asList(
-                IO_class,
                 Str_class,
                 Int_class,
-                Bool_class
+                Bool_class,
+                IO_class
         )));
 
         classMap.put(TreeConstants.IO, new ArrayList<>());
@@ -320,6 +322,7 @@ class ClassTable {
         }
 
         path.remove(className);
+
     }
 
     private void markDescendants(Symbol currentClass, Set<Symbol> cycleClasses) {

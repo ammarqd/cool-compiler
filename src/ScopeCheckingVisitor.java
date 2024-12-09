@@ -1,84 +1,49 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
-import com.sun.jdi.Method;
-import jdk.jshell.execution.Util;
 
 import java.util.*;
 
 class ScopeContext {
     private final ClassNode currentClass;
     private final Map<Symbol, MethodNode> methodMap;
-    private final Map<Symbol, ArrayList<ClassNode>> classMap;
-    private final ClassTable classTable;
+    private final Map<Symbol, AttributeNode> attributeMap;
 
-    public ScopeContext(ClassNode currentClass, ClassTable classTable) {
+    public ScopeContext(ClassNode currentClass) {
         this.currentClass = currentClass;
-        this.classTable = classTable;
+        this.attributeMap = new HashMap<>();
         this.methodMap = new HashMap<>();
-        this.classMap = classTable.getClassMap();
     }
 
     public ClassNode getCurrentClass() {
         return currentClass;
     }
 
-    public ClassTable getClassTable() {
-        return classTable;
-    }
-
     public MethodNode getMethod(Symbol name) {
         return methodMap.get(name);
     }
 
+    public AttributeNode getAttribute(Symbol name) {
+        return attributeMap.get(name);
+    }
+
+    public void addMethod(Symbol name, MethodNode method) {
+        methodMap.put(name, method);
+    }
+
+    public void addAttribute(Symbol name, AttributeNode attr) {
+        attributeMap.put(name, attr);
+    }
+
+    public Map<Symbol, AttributeNode> getAttributeMap() {
+        return attributeMap;
+    }
+
+    public Map<Symbol, MethodNode> getMethodMap() {
+        return methodMap;
+    }
 }
 
 public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
-
-    public ScopeCheckingVisitor() {
-        ArrayList<ClassNode> rootClasses = Semant.classTable.getClassMap().get(TreeConstants.Object_);
-        for (int i = rootClasses.size() - 1; i >= 3; i--) { // Skip classes that disallow inheritance: String, Int, Bool
-            HashMap<Symbol, MethodNode> methodMap = new HashMap<>();
-            for (FeatureNode feature : rootClasses.get(i).getFeatures()) {
-                if (feature instanceof MethodNode method) {
-                    if (!methodMap.containsKey(method.getName())) {
-                        methodMap.put(method.getName(), method);
-                    } else {
-                        Utilities.semantError(rootClasses.get(i)).println("Method " + method.getName()
-                        + "is multiply defined.");
-                    }
-                }
-            }
-            registerInheritedMethods(rootClasses.get(i), methodMap);
-        }
-    }
-
-    private void registerInheritedMethods(ClassNode classNode, HashMap<Symbol, MethodNode> methodMap) {
-        for (ClassNode className : Semant.classTable.getClassMap().get(classNode.getName())) {
-            Set<Symbol> seenMethods = new HashSet<>();
-            boolean priorityError = false;
-            for (FeatureNode feature : className.getFeatures()) {
-                if (feature instanceof MethodNode method) {
-                    if (!methodMap.containsKey(method.getName())) {
-                        methodMap.put(method.getName(), method);
-                    } else if (seenMethods.contains(method.getName()) && !priorityError) {
-                        Utilities.semantError(className).println("Method " + method.getName()
-                                + " is multiply defined.");
-                    } else if (methodMap.get(method.getName()).getReturn_type() != method.getReturn_type()) {
-                            Utilities.semantError(className).println("In redefined method " + method.getName()
-                                    + ", return type " + method.getReturn_type() + " is different from original return type "
-                                    + methodMap.get(method.getName()).getReturn_type() + ".");
-                            priorityError = true;
-                    } else if (method.getFormals().size() != methodMap.get(method.getName()).getFormals().size()) {
-                        Utilities.semantError(className).println("Incompatible number of formal parameters in redefined method"
-                        + method.getName());
-                        priorityError = true;
-                    }
-                    seenMethods.add(method.getName());
-                }
-            }
-            registerInheritedMethods(className, methodMap);
-        }
-    }
 
     @Override
     public Void visit(ProgramNode node, ScopeContext context) {
@@ -86,11 +51,66 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
             Utilities.semantError().println("Class Main is not defined.");
         }
 
-        for (ClassNode classNode : node.getClasses()) {
-            visit(classNode, new ScopeContext(classNode, Semant.classTable));
+        ArrayList<ClassNode> objectNode = Semant.classTable.getClassMap().get(TreeConstants.No_class);
+        ArrayList<ClassNode> objectClasses = Semant.classTable.getClassMap().get(TreeConstants.Object_);
+
+        // Skip last 3 classes (String, Int, Bool), since they disallow inheritance
+        for (int i = objectClasses.size() - 1; i >= 3; i--) {
+            ScopeContext rootContext = new ScopeContext(objectClasses.get(i));
+
+            // Add the default Object methods to methodMap
+            for (FeatureNode feature : objectNode.get(0).getFeatures()) {
+                rootContext.getMethodMap().put(((MethodNode)feature).getName(), (MethodNode)feature);
+            }
+
+            visitClassHierarchy(objectClasses.get(i), rootContext);
         }
 
         return null;
+    }
+
+
+    private void visitClassHierarchy(ClassNode classNode, ScopeContext parentContext) {
+        ScopeContext context = new ScopeContext(classNode);
+
+        if (parentContext != null) {
+            context.getMethodMap().putAll(parentContext.getMethodMap());
+            context.getAttributeMap().putAll(parentContext.getAttributeMap());
+        }
+
+        for (FeatureNode feature : classNode.getFeatures()) {
+            if (feature instanceof MethodNode method) {
+                if (!context.getMethodMap().containsKey(method.getName())) {
+                    context.addMethod(method.getName(), method);
+                } else {
+                    MethodNode parentMethod = context.getMethod(method.getName());
+                    if (parentMethod.getReturn_type() != method.getReturn_type()) {
+                        Utilities.semantError(classNode).println("In redefined method " + method.getName()
+                                + ", return type " + method.getReturn_type() + " is different from original return type "
+                                + parentMethod.getReturn_type() + ".");
+                    } else if (method.getFormals().size() != parentMethod.getFormals().size()) {
+                        Utilities.semantError(classNode).println("Incompatible number of formal parameters in redefined method "
+                                + method.getName());
+                    } else {
+                        context.addMethod(method.getName(), method);
+                    }
+                }
+            } else if (feature instanceof AttributeNode attribute) {
+                if (!context.getAttributeMap().containsKey(attribute.getName())) {
+                    context.addAttribute(attribute.getName(), attribute);
+                } else {
+                    Utilities.semantError(classNode).println("Attribute " + attribute.getName()
+                            + " is an attribute of an inherited class.");
+                }
+            }
+        }
+
+        visit(classNode, context); // Visit current class, utilising the visitor pattern
+
+        ArrayList<ClassNode> children = Semant.classTable.getClassMap().get(classNode.getName());
+        for (ClassNode child : children) {
+            visitClassHierarchy(child, context);
+        }
     }
 
     @Override
@@ -104,7 +124,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
         Semant.symTable.enterScope();
 
-        // Second pass: Check implementations
+
         for (FeatureNode feature : node.getFeatures()) {
             feature.accept(this, context);
         }
@@ -138,7 +158,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                     .println("'self' cannot be the name of an attribute.");
         }
 
-        Semant.symTable.addId(node.getName(), node.getType_decl());
+        context.addAttribute(node.getName(), node);
 
         visit(node.getInit(), context);
 
@@ -170,18 +190,14 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                     .println("'self' cannot be bound in a 'let' expression.");
         }
 
-        if (Semant.symTable.probe(node.getIdentifier()) != null) {
-            Utilities.semantError(context.getCurrentClass())
-                    .println("Let variable " + node.getIdentifier() + " is multiply defined.");
-        } else {
-            Semant.symTable.enterScope();
-            Semant.symTable.addId(node.getIdentifier(), node.getType_decl());
+        Semant.symTable.enterScope();
+        Semant.symTable.addId(node.getIdentifier(), node.getType_decl());
 
-            visit(node.getInit(), context);
-            visit(node.getBody(), context);
+        visit(node.getInit(), context);
+        visit(node.getBody(), context);
 
-            Semant.symTable.exitScope();
-        }
+        Semant.symTable.exitScope();
+
         return null;
     }
 
@@ -189,8 +205,11 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     @Override
     public Void visit(ObjectNode node, ScopeContext context) {
 
-        if (Semant.symTable.lookup(node.getName()) == null &&
-                Semant.symTable.lookup(node.getName()) == null) {
+        if (node.getName() == TreeConstants.self) {
+            return null;
+        }
+
+        if (Semant.symTable.lookup(node.getName()) == null && context.getAttribute(node.getName()) == null) {
             Utilities.semantError(context.getCurrentClass().getFilename(), node)
                     .println("Undeclared identifier " + node.getName() + ".");
         }
@@ -229,15 +248,6 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                     .println("Static dispatch to undefined method " + node.getName() + ".");
         }
 
-        return null;
-    }
-
-    @Override
-    public Void visit(BlockNode node, ScopeContext context) {
-
-        for (ExpressionNode expr : node.getExprs()) {
-            visit(expr, context);
-        }
         return null;
     }
 
