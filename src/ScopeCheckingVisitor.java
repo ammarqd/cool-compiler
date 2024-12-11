@@ -1,7 +1,9 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.util.*;
 
 class ScopeContext {
     private final ClassNode currentClass;
@@ -51,8 +53,8 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
             Utilities.semantError().println("Class Main is not defined.");
         }
 
-        ArrayList<ClassNode> objectNode = Semant.classTable.getClassMap().get(TreeConstants.No_class);
-        ArrayList<ClassNode> objectClasses = Semant.classTable.getClassMap().get(TreeConstants.Object_);
+        ArrayList<ClassNode> objectNode = Semant.classTable.getInheritanceMap().get(TreeConstants.No_class);
+        ArrayList<ClassNode> objectClasses = Semant.classTable.getInheritanceMap().get(TreeConstants.Object_);
 
         // Skip last 3 classes (String, Int, Bool), since they disallow inheritance
         for (int i = objectClasses.size() - 1; i >= 3; i--) {
@@ -107,7 +109,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
         visit(classNode, context); // Visit current class, utilising the visitor pattern
 
-        ArrayList<ClassNode> children = Semant.classTable.getClassMap().get(classNode.getName());
+        ArrayList<ClassNode> children = Semant.classTable.getInheritanceMap().get(classNode.getName());
         for (ClassNode child : children) {
             visitClassHierarchy(child, context);
         }

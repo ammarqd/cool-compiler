@@ -10,7 +10,9 @@ import java.util.*;
  */
 class ClassTable {
 
-    private final Map<Symbol, ArrayList<ClassNode>> classMap = new HashMap<>();
+    private final Map<Symbol, ArrayList<ClassNode>> inheritanceMap = new HashMap<>();
+    private final Map<Symbol, ClassNode> classMap = new HashMap<>();
+
 
     private static final Set<Symbol> NON_REDEFINABLE_CLASSES = Set.of(
             TreeConstants.IO,
@@ -217,19 +219,25 @@ class ClassTable {
 	/* Do something with Object_class, IO_class, Int_class,
            Bool_class, and Str_class here */
 
-        classMap.put(TreeConstants.No_class, new ArrayList<>(List.of(Object_class)));
+        inheritanceMap.put(TreeConstants.No_class, new ArrayList<>(List.of(Object_class)));
 
-        classMap.put(TreeConstants.Object_, new ArrayList<>(Arrays.asList(
+        inheritanceMap.put(TreeConstants.Object_, new ArrayList<>(Arrays.asList(
                 Str_class,
                 Int_class,
                 Bool_class,
                 IO_class
         )));
 
-        classMap.put(TreeConstants.IO, new ArrayList<>());
-        classMap.put(TreeConstants.Str, null);
-        classMap.put(TreeConstants.Int, null);
-        classMap.put(TreeConstants.Bool, null);
+        inheritanceMap.put(TreeConstants.IO, new ArrayList<>());
+        inheritanceMap.put(TreeConstants.Str, null);
+        inheritanceMap.put(TreeConstants.Int, null);
+        inheritanceMap.put(TreeConstants.Bool, null);
+
+        classMap.put(TreeConstants.Object_, Object_class);
+        classMap.put(TreeConstants.IO, IO_class);
+        classMap.put(TreeConstants.Str, Str_class);
+        classMap.put(TreeConstants.Int, Int_class);
+        classMap.put(TreeConstants.Bool, Bool_class);
     }
 
     public ClassTable(List<ClassNode> cls) {
@@ -242,19 +250,70 @@ class ClassTable {
         checkInheritanceCycles(cls);
     }
 
+    public Map<Symbol, ArrayList<ClassNode>> getInheritanceMap() {
+        return inheritanceMap;
+    }
+
+    public boolean isValidType(Symbol type) {
+        return inheritanceMap.containsKey(type);
+    }
+
+
+    public boolean isSubType(Symbol sub, Symbol supertype) {
+        ClassNode currentClass = classMap.get(sub);
+        while (currentClass != null) {
+            if (currentClass.getName().equals(supertype)) {
+                return true;
+            }
+            currentClass = classMap.get(currentClass.getParent());
+        }
+        return false;
+    }
+
+    public Symbol getLeastUpperBound(Symbol type1, Symbol type2) {
+        Set<Symbol> visited = new HashSet<>();
+
+        ClassNode current1 = classMap.get(type1);
+        ClassNode current2 = classMap.get(type2);
+
+        while (current1 != null || current2 != null) {
+            if (current1 != null) {
+                if (visited.contains(current1.getName())) {
+                    return current1.getName();
+                }
+                visited.add(current1.getName());
+                current1 = classMap.get(current1.getParent());
+            }
+
+            if (current2 != null) {
+                if (visited.contains(current2.getName())) {
+                    return current2.getName();
+                }
+                visited.add(current2.getName());
+                current2 = classMap.get(current2.getParent());
+            }
+        }
+        return TreeConstants.Object_;
+    }
+
+    public boolean isBuiltInMethod(Symbol methodName) {
+        return builtInMethods.contains(methodName);
+    }
+
     private void checkClassRedefinitions(List<ClassNode> cls) {
         for (ClassNode c : cls) {
             Symbol className = c.getName();
-            if (classMap.containsKey(className)) {
+            if (inheritanceMap.containsKey(className)) {
                 if (NON_REDEFINABLE_CLASSES.contains(className)) {
                     Utilities.semantError(c).println("Redefinition of basic class " + className + ".");
                 } else {
                     Utilities.semantError(c).println("Class " + className + " was previously defined.");
                 }
-                classMap.put(className, null); // mark as null to avoid repeat errors, first error takes priority
+                inheritanceMap.put(className, null); // Mark as null to avoid repeat errors, first error takes priority
                 continue;
             }
-            classMap.put(className, new ArrayList<>());
+            inheritanceMap.put(className, new ArrayList<>());
+            classMap.put(className, c);
         }
     }
 
@@ -264,11 +323,11 @@ class ClassTable {
             Symbol className = c.getName();
             Symbol parent = c.getParent();
 
-            if (classMap.get(className) == null) { // skip classes that already had errors
+            if (inheritanceMap.get(className) == null) { // Skip classes that already had errors
                 continue;
             }
 
-            if (!classMap.containsKey(parent) && !parent.equals(TreeConstants.No_class)) {
+            if (!inheritanceMap.containsKey(parent) && !parent.equals(TreeConstants.No_class)) {
                 Utilities.semantError(c).println("Class " + className + " inherits from an undefined class " + parent + ".");
                 continue;
             }
@@ -278,8 +337,8 @@ class ClassTable {
                 continue;
             }
 
-            if (classMap.get(parent) != null) {
-                classMap.get(parent).add(c);
+            if (inheritanceMap.get(parent) != null) {
+                inheritanceMap.get(parent).add(c);
             }
         }
     }
@@ -317,7 +376,7 @@ class ClassTable {
         visited.add(className);
         path.add(className);
 
-        for (ClassNode child : classMap.get(className)) {
+        for (ClassNode child : inheritanceMap.get(className)) {
             detectCycles(child.getName(), visited, path, cycleClasses);
         }
 
@@ -326,23 +385,11 @@ class ClassTable {
     }
 
     private void markDescendants(Symbol currentClass, Set<Symbol> cycleClasses) {
-        for (ClassNode child : classMap.get(currentClass)) {
+        for (ClassNode child : inheritanceMap.get(currentClass)) {
             if (cycleClasses.add(child.getName())) {
                 markDescendants(child.getName(), cycleClasses);
             }
         }
-    }
-
-    public boolean isValidType(Symbol type) {
-        return classMap.containsKey(type);
-    }
-
-    public Map<Symbol, ArrayList<ClassNode>> getClassMap() {
-        return classMap;
-    }
-
-    public boolean isBuiltInMethod(Symbol methodName) {
-        return builtInMethods.contains(methodName);
     }
 
 }
