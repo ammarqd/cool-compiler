@@ -53,21 +53,20 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
             Utilities.semantError().println("Class Main is not defined.");
         }
 
-        ArrayList<ClassNode> objectNode = Semant.classTable.getInheritanceMap().get(TreeConstants.No_class);
         ArrayList<ClassNode> objectClasses = Semant.classTable.getInheritanceMap().get(TreeConstants.Object_);
+        ClassNode objectNode = Semant.classTable.getClassMap().get(TreeConstants.Object_);
 
         // Skip last 3 classes (String, Int, Bool), since they disallow inheritance
         for (int i = objectClasses.size() - 1; i >= 3; i--) {
             ScopeContext rootContext = new ScopeContext(objectClasses.get(i));
 
             // Add the default Object methods to methodMap
-            for (FeatureNode feature : objectNode.get(0).getFeatures()) {
+            for (FeatureNode feature : objectNode.getFeatures()) {
                 rootContext.getMethodMap().put(((MethodNode)feature).getName(), (MethodNode)feature);
             }
 
             visitClassHierarchy(objectClasses.get(i), rootContext);
         }
-
         return null;
     }
 
@@ -93,8 +92,6 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                     } else if (method.getFormals().size() != parentMethod.getFormals().size()) {
                         Utilities.semantError(classNode).println("Incompatible number of formal parameters in redefined method "
                                 + method.getName());
-                    } else {
-                        context.addMethod(method.getName(), method);
                     }
                 }
             } else if (feature instanceof AttributeNode attribute) {
@@ -126,13 +123,11 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
         Semant.symTable.enterScope();
 
-
         for (FeatureNode feature : node.getFeatures()) {
             feature.accept(this, context);
         }
 
         Semant.symTable.exitScope();
-
         return null;
     }
 
@@ -146,9 +141,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
         }
 
         visit(node.getExpr(), context);
-
         Semant.symTable.exitScope();
-
         return null;
     }
 
@@ -160,10 +153,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                     .println("'self' cannot be the name of an attribute.");
         }
 
-        context.addAttribute(node.getName(), node);
-
         visit(node.getInit(), context);
-
         return null;
     }
 
@@ -181,6 +171,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
         } else {
             Semant.symTable.addId(node.getName(), node.getType_decl());
         }
+
         return null;
     }
 
@@ -266,7 +257,9 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
             Semant.symTable.enterScope();
             Semant.symTable.addId(branch.getName(), branch.getType_decl());
+
             visit(branch.getExpr(), context);
+
             Semant.symTable.exitScope();
         }
         return null;

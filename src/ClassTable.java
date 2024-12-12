@@ -13,7 +13,6 @@ class ClassTable {
     private final Map<Symbol, ArrayList<ClassNode>> inheritanceMap = new HashMap<>();
     private final Map<Symbol, ClassNode> classMap = new HashMap<>();
 
-
     private static final Set<Symbol> NON_REDEFINABLE_CLASSES = Set.of(
             TreeConstants.IO,
             TreeConstants.Str,
@@ -254,12 +253,16 @@ class ClassTable {
         return inheritanceMap;
     }
 
+    public Map<Symbol, ClassNode> getClassMap() {
+        return classMap;
+    }
+
     public boolean isValidType(Symbol type) {
         return inheritanceMap.containsKey(type);
     }
 
-
     public boolean isSubType(Symbol sub, Symbol supertype) {
+        if (sub.equals(supertype)) return true;
         ClassNode currentClass = classMap.get(sub);
         while (currentClass != null) {
             if (currentClass.getName().equals(supertype)) {
