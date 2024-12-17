@@ -13,32 +13,6 @@ class ClassTable {
     private final Map<Symbol, ArrayList<ClassNode>> inheritanceMap = new HashMap<>();
     private final Map<Symbol, ClassNode> classMap = new HashMap<>();
 
-    private static final Set<Symbol> NON_REDEFINABLE_CLASSES = Set.of(
-            TreeConstants.IO,
-            TreeConstants.Str,
-            TreeConstants.Int,
-            TreeConstants.Bool
-    );
-
-    private static final Set<Symbol> NON_INHERITABLE_CLASSES = Set.of(
-            TreeConstants.Str,
-            TreeConstants.Int,
-            TreeConstants.Bool
-    );
-
-    private static final Set<Symbol> builtInMethods = Set.of(
-            TreeConstants.cool_abort,
-            TreeConstants.type_name,
-            TreeConstants.copy,
-            TreeConstants.length,
-            TreeConstants.concat,
-            TreeConstants.substr,
-            TreeConstants.out_string,
-            TreeConstants.out_int,
-            TreeConstants.in_string,
-            TreeConstants.in_int
-    );
-
     /**
      * Creates data structures representing basic Cool classes (Object,
      * IO, Int, Bool, String).  Please note: as is this method does not
@@ -218,20 +192,11 @@ class ClassTable {
 	/* Do something with Object_class, IO_class, Int_class,
            Bool_class, and Str_class here */
 
-        inheritanceMap.put(TreeConstants.No_class, new ArrayList<>(List.of(Object_class)));
-
-        inheritanceMap.put(TreeConstants.Object_, new ArrayList<>(Arrays.asList(
-                Str_class,
-                Int_class,
-                Bool_class,
-                IO_class
-        )));
-
+        // Only add these two built-in classes to the inheritance map, since they allow inheritance
+        inheritanceMap.put(TreeConstants.Object_, new ArrayList<>());
         inheritanceMap.put(TreeConstants.IO, new ArrayList<>());
-        inheritanceMap.put(TreeConstants.Str, null);
-        inheritanceMap.put(TreeConstants.Int, null);
-        inheritanceMap.put(TreeConstants.Bool, null);
 
+        // For access to built-in class nodes, child -> parent relationship
         classMap.put(TreeConstants.Object_, Object_class);
         classMap.put(TreeConstants.IO, IO_class);
         classMap.put(TreeConstants.Str, Str_class);
@@ -257,7 +222,7 @@ class ClassTable {
         return classMap;
     }
 
-    public boolean isValidType(Symbol type) {
+    public boolean isTypeDefined(Symbol type) {
         return inheritanceMap.containsKey(type);
     }
 
@@ -300,23 +265,38 @@ class ClassTable {
     }
 
     public boolean isBuiltInMethod(Symbol methodName) {
-        return builtInMethods.contains(methodName);
+        return (methodName == TreeConstants.cool_abort
+                || methodName == TreeConstants.type_name
+                || methodName == TreeConstants.copy
+                || methodName == TreeConstants.length
+                || methodName == TreeConstants.concat
+                || methodName == TreeConstants.substr
+                || methodName == TreeConstants.out_string
+                || methodName == TreeConstants.out_int
+                || methodName == TreeConstants.in_string
+                || methodName == TreeConstants.in_int);
     }
 
     private void checkClassRedefinitions(List<ClassNode> cls) {
         for (ClassNode c : cls) {
             Symbol className = c.getName();
-            if (inheritanceMap.containsKey(className)) {
-                if (NON_REDEFINABLE_CLASSES.contains(className)) {
-                    Utilities.semantError(c).println("Redefinition of basic class " + className + ".");
-                } else {
-                    Utilities.semantError(c).println("Class " + className + " was previously defined.");
-                }
-                inheritanceMap.put(className, null); // Mark as null to avoid repeat errors, first error takes priority
+
+            if (className == TreeConstants.IO
+                    || className == TreeConstants.Str
+                    || className == TreeConstants.Int
+                    || className == TreeConstants.Bool
+                    || className.equals(TreeConstants.SELF_TYPE)) {
+                Utilities.semantError(c).println("Redefinition of basic class " + className + ".");
                 continue;
             }
-            inheritanceMap.put(className, new ArrayList<>());
+
+            if (classMap.containsKey(className)) {
+                Utilities.semantError(c).println("Class " + className + " was previously defined.");
+                continue;
+            }
+
             classMap.put(className, c);
+            inheritanceMap.put(className, new ArrayList<>());
         }
     }
 
@@ -326,34 +306,43 @@ class ClassTable {
             Symbol className = c.getName();
             Symbol parent = c.getParent();
 
-            if (inheritanceMap.get(className) == null) { // Skip classes that already had errors
+            // Ignore classes that aren't in classMap, so we don't double report errors
+            if (c != classMap.get(c.getName())) {
                 continue;
             }
 
-            if (!inheritanceMap.containsKey(parent) && !parent.equals(TreeConstants.No_class)) {
-                Utilities.semantError(c).println("Class " + className + " inherits from an undefined class " + parent + ".");
-                continue;
-            }
-
-            if (NON_INHERITABLE_CLASSES.contains(parent)) {
+            if (parent == TreeConstants.Str
+                    || parent == TreeConstants.Int
+                    || parent == TreeConstants.Bool
+                    || parent == TreeConstants.SELF_TYPE) {
                 Utilities.semantError(c).println("Class " + className + " cannot inherit class " + parent + ".");
                 continue;
             }
 
-            if (inheritanceMap.get(parent) != null) {
-                inheritanceMap.get(parent).add(c);
+            if (!classMap.containsKey(parent)) {
+                Utilities.semantError(c).println("Class " + className + " inherits from an undefined class " + parent + ".");
+                continue;
             }
+
+            inheritanceMap.get(parent).add(c);
         }
     }
 
     private void checkInheritanceCycles(List<ClassNode> cls) {
+        final int WHITE = 0;  // Unvisited node
+        final int GREY = 1;   // Node currently being visited (part of DFS path)
+        final int BLACK = 2;  // Fully visited node (no cycles found in its path)
+
+        Map<Symbol, Integer> colorMap = new HashMap<>();
         Set<Symbol> cycleClasses = new HashSet<>();
-        Set<Symbol> visited = new HashSet<>();
-        Set<Symbol> path = new HashSet<>();
 
         for (ClassNode c : cls) {
-            if (!visited.contains(c.getName())) {
-                detectCycles(c.getName(), visited, path, cycleClasses);
+            colorMap.put(c.getName(), WHITE);
+        }
+
+        for (ClassNode c : cls) {
+            if (colorMap.get(c.getName()) == WHITE) {
+                detectCycles(c.getName(), colorMap, cycleClasses, GREY, BLACK);
             }
         }
 
@@ -365,26 +354,23 @@ class ClassTable {
         }
     }
 
-    private void detectCycles(Symbol className, Set<Symbol> visited, Set<Symbol> path, Set<Symbol> cycleClasses) {
-
-        if (path.contains(className)) {
+    private void detectCycles(Symbol className, Map<Symbol, Integer> colorMap, Set<Symbol> cycleClasses, int GREY, int BLACK) {
+        if (colorMap.get(className) == GREY) {
             markDescendants(className, cycleClasses);
             return;
         }
 
-        if (visited.contains(className)) {
+        if (colorMap.get(className) == BLACK) {
             return;
         }
 
-        visited.add(className);
-        path.add(className);
+        colorMap.put(className, GREY);
 
         for (ClassNode child : inheritanceMap.get(className)) {
-            detectCycles(child.getName(), visited, path, cycleClasses);
+            detectCycles(child.getName(), colorMap, cycleClasses, GREY, BLACK);
         }
 
-        path.remove(className);
-
+        colorMap.put(className, BLACK);
     }
 
     private void markDescendants(Symbol currentClass, Set<Symbol> cycleClasses) {
@@ -394,6 +380,7 @@ class ClassTable {
             }
         }
     }
+
 
 }
 
