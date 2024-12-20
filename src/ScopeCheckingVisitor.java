@@ -7,13 +7,13 @@ import java.util.Map;
 
 class ScopeContext {
     private final ClassNode currentClass;
-    private final Map<Symbol, MethodNode> methodMap;
-    private final Map<Symbol, AttributeNode> attributeMap;
+    private final Map<Symbol, MethodNode> methodsMap;
+    private final Map<Symbol, AttributeNode> attributesMap;
 
     public ScopeContext(ClassNode currentClass) {
         this.currentClass = currentClass;
-        this.attributeMap = new HashMap<>();
-        this.methodMap = new HashMap<>();
+        this.attributesMap = new HashMap<>();
+        this.methodsMap = new HashMap<>();
     }
 
     public ClassNode getCurrentClass() {
@@ -21,27 +21,27 @@ class ScopeContext {
     }
 
     public MethodNode getMethod(Symbol name) {
-        return methodMap.get(name);
+        return methodsMap.get(name);
     }
 
     public AttributeNode getAttribute(Symbol name) {
-        return attributeMap.get(name);
+        return attributesMap.get(name);
     }
 
     public void addMethod(Symbol name, MethodNode method) {
-        methodMap.put(name, method);
+        methodsMap.put(name, method);
     }
 
     public void addAttribute(Symbol name, AttributeNode attr) {
-        attributeMap.put(name, attr);
+        attributesMap.put(name, attr);
     }
 
-    public Map<Symbol, AttributeNode> getAttributeMap() {
-        return attributeMap;
+    public Map<Symbol, AttributeNode> getAttributesMap() {
+        return attributesMap;
     }
 
-    public Map<Symbol, MethodNode> getMethodMap() {
-        return methodMap;
+    public Map<Symbol, MethodNode> getMethodsMap() {
+        return methodsMap;
     }
 }
 
@@ -49,40 +49,86 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
     @Override
     public Void visit(ProgramNode node, ScopeContext context) {
-        if (!Semant.classTable.isValidType(TreeConstants.Main)) {
+        if (!Semant.classTable.isTypeDefined(TreeConstants.Main)) {
             Utilities.semantError().println("Class Main is not defined.");
         }
 
-        ArrayList<ClassNode> objectClasses = Semant.classTable.getInheritanceMap().get(TreeConstants.Object_);
         ClassNode objectNode = Semant.classTable.getClassMap().get(TreeConstants.Object_);
+        ArrayList<ClassNode> objectClasses = Semant.classTable.getInheritanceMap().get(TreeConstants.Object_);
 
-        // Skip last 3 classes (String, Int, Bool), since they disallow inheritance
-        for (int i = objectClasses.size() - 1; i >= 3; i--) {
-            ScopeContext rootContext = new ScopeContext(objectClasses.get(i));
+        // Initial traversal to validate method overrides
+        for (int i = objectClasses.size() - 1; i >= 0; i--) {
+            ClassNode classNode = objectClasses.get(i);
+            ScopeContext rootContext = new ScopeContext(classNode);
 
             // Add the default Object methods to methodMap
             for (FeatureNode feature : objectNode.getFeatures()) {
-                rootContext.getMethodMap().put(((MethodNode)feature).getName(), (MethodNode)feature);
+                rootContext.addMethod(((MethodNode)feature).getName(), (MethodNode)feature);
             }
 
-            visitClassHierarchy(objectClasses.get(i), rootContext);
+            Map<Symbol, Map<Symbol, AttributeNode>> classAttributesMap = Semant.classTable.getClassAttributesMap();
+            Map<Symbol, Map<Symbol, MethodNode>> classMethodsMap = Semant.classTable.getClassMethodsMap();
+
+            for (FeatureNode feature : classNode.getFeatures()) {
+                if (feature instanceof AttributeNode attribute) {
+                    rootContext.addAttribute(attribute.getName(), attribute);
+                } else if (feature instanceof MethodNode method) {
+                    rootContext.addMethod(method.getName(), method);
+                }
+            }
+
+            Symbol className = classNode.getName();
+            for (Map.Entry<Symbol, AttributeNode> entry : rootContext.getAttributesMap().entrySet()) {
+                classAttributesMap
+                        .computeIfAbsent(className, k -> new HashMap<>())
+                        .putIfAbsent(entry.getKey(), entry.getValue());
+            }
+
+            for (Map.Entry<Symbol, MethodNode> entry : rootContext.getMethodsMap().entrySet()) {
+                classMethodsMap
+                        .computeIfAbsent(className, k -> new HashMap<>())
+                        .putIfAbsent(entry.getKey(), entry.getValue());
+            }
+
+            ArrayList<ClassNode> children = Semant.classTable.getInheritanceMap().get(classNode.getName());
+            for (ClassNode child : children) {
+                validateFeatureOverrides(child, rootContext);
+            }
         }
+
+        // Traverse the full inheritance hierarchy,
+        for (int i = objectClasses.size() - 1; i >= 0; i--) {
+            visitInheritanceHierarchy(objectClasses.get(i));
+        }
+
         return null;
     }
 
-
-    private void visitClassHierarchy(ClassNode classNode, ScopeContext parentContext) {
+    private void validateFeatureOverrides(ClassNode classNode, ScopeContext parentContext) {
         ScopeContext context = new ScopeContext(classNode);
+        Map<Symbol, Map<Symbol, AttributeNode>> classAttributesMap = Semant.classTable.getClassAttributesMap();
+        Map<Symbol, Map<Symbol, MethodNode>> classMethodsMap = Semant.classTable.getClassMethodsMap();
 
-        if (parentContext != null) {
-            context.getMethodMap().putAll(parentContext.getMethodMap());
-            context.getAttributeMap().putAll(parentContext.getAttributeMap());
-        }
+        context.getAttributesMap().putAll(parentContext.getAttributesMap());
+        context.getMethodsMap().putAll(parentContext.getMethodsMap());
+
+        Symbol className = context.getCurrentClass().getName();
 
         for (FeatureNode feature : classNode.getFeatures()) {
-            if (feature instanceof MethodNode method) {
-                if (!context.getMethodMap().containsKey(method.getName())) {
+            if (feature instanceof AttributeNode attribute) {
+                if (!context.getAttributesMap().containsKey(attribute.getName())) {
+                    context.addAttribute(attribute.getName(), attribute);
+                    classAttributesMap.computeIfAbsent(className, k -> new HashMap<>())
+                            .put(attribute.getName(), attribute);
+                } else {
+                    Utilities.semantError(classNode).println("Attribute " + attribute.getName()
+                            + " is an attribute of an inherited class.");
+                }
+            } else if (feature instanceof MethodNode method) {
+                if (!context.getMethodsMap().containsKey(method.getName())) {
                     context.addMethod(method.getName(), method);
+                    classMethodsMap.computeIfAbsent(className, k -> new HashMap<>())
+                            .put(method.getName(), method);
                 } else {
                     MethodNode parentMethod = context.getMethod(method.getName());
                     if (parentMethod.getReturn_type() != method.getReturn_type()) {
@@ -91,32 +137,59 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                                 + parentMethod.getReturn_type() + ".");
                     } else if (method.getFormals().size() != parentMethod.getFormals().size()) {
                         Utilities.semantError(classNode).println("Incompatible number of formal parameters in redefined method "
-                                + method.getName());
+                                + method.getName() + ".");
+                    } else {
+                        context.addMethod(method.getName(), method);
+                        classMethodsMap.get(className).put(method.getName(), method);
                     }
-                }
-            } else if (feature instanceof AttributeNode attribute) {
-                if (!context.getAttributeMap().containsKey(attribute.getName())) {
-                    context.addAttribute(attribute.getName(), attribute);
-                } else {
-                    Utilities.semantError(classNode).println("Attribute " + attribute.getName()
-                            + " is an attribute of an inherited class.");
                 }
             }
         }
 
-        visit(classNode, context); // Visit current class, utilising the visitor pattern
+        for (Map.Entry<Symbol, AttributeNode> entry : context.getAttributesMap().entrySet()) {
+            classAttributesMap
+                    .computeIfAbsent(className, k -> new HashMap<>())
+                    .putIfAbsent(entry.getKey(), entry.getValue());
+        }
+
+        for (Map.Entry<Symbol, MethodNode> entry : context.getMethodsMap().entrySet()) {
+            classMethodsMap
+                    .computeIfAbsent(className, k -> new HashMap<>())
+                    .putIfAbsent(entry.getKey(), entry.getValue());
+        }
 
         ArrayList<ClassNode> children = Semant.classTable.getInheritanceMap().get(classNode.getName());
         for (ClassNode child : children) {
-            visitClassHierarchy(child, context);
+            validateFeatureOverrides(child, context);
+        }
+    }
+
+    private void visitInheritanceHierarchy(ClassNode classNode) {
+        ScopeContext context = new ScopeContext(classNode);
+
+        Map<Symbol, AttributeNode> classAttributes = Semant.classTable.getClassAttributesMap().get(classNode.getName());
+        if (classAttributes != null) {
+            context.getAttributesMap().putAll(classAttributes);
+        }
+
+        Map<Symbol, MethodNode> classMethods = Semant.classTable.getClassMethodsMap().get(classNode.getName());
+        if (classMethods != null) {
+            context.getMethodsMap().putAll(classMethods);
+        }
+
+        visit(classNode, context); // Visit current class, utilising the visitor pattern, and DFS traversal
+
+        ArrayList<ClassNode> children = Semant.classTable.getInheritanceMap().get(classNode.getName());
+        for (ClassNode child : children) {
+            visitInheritanceHierarchy(child);
         }
     }
 
     @Override
     public Void visit(ClassNode node, ScopeContext context) {
 
-        if (node.getName().equals(TreeConstants.Main) &&
-                context.getMethod(TreeConstants.main_meth) == null) {
+        if (node.getName() == TreeConstants.Main &&
+                Semant.classTable.getClassMethodsMap().get(TreeConstants.Main).get(TreeConstants.main_meth) == null) {
             Utilities.semantError(context.getCurrentClass())
                     .println("No 'main' method in class Main.");
         }
@@ -148,7 +221,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     @Override
     public Void visit(AttributeNode node, ScopeContext context) {
 
-        if (node.getName().equals(TreeConstants.self)) {
+        if (node.getName() == TreeConstants.self) {
             Utilities.semantError(context.getCurrentClass())
                     .println("'self' cannot be the name of an attribute.");
         }
@@ -160,7 +233,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     @Override
     public Void visit(FormalNode node, ScopeContext context) {
 
-        if (node.getName().equals(TreeConstants.self)) {
+        if (node.getName() == TreeConstants.self) {
             Utilities.semantError(context.getCurrentClass())
                     .println("'self' cannot be the name of a formal parameter.");
         }
@@ -178,7 +251,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     @Override
     public Void visit(LetNode node, ScopeContext context) {
 
-        if (node.getIdentifier().equals(TreeConstants.self)) {
+        if (node.getIdentifier() == TreeConstants.self) {
             Utilities.semantError(context.getCurrentClass())
                     .println("'self' cannot be bound in a 'let' expression.");
         }
@@ -210,47 +283,12 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     }
 
     @Override
-    public Void visit(DispatchNode node, ScopeContext context) {
-
-        visit(node.getExpr(), context);
-
-        for (ExpressionNode actual : node.getActuals()) {
-            visit(actual, context);
-        }
-
-        if (context.getMethod(node.getName()) == null
-                && !Semant.classTable.isBuiltInMethod(node.getName())) {
-            Utilities.semantError(context.getCurrentClass())
-                    .println("Dispatch to undefined method " + node.getName() + ".");
-        }
-
-        return null;
-    }
-
-    @Override
-    public Void visit(StaticDispatchNode node, ScopeContext context) {
-
-        visit(node.getExpr(), context);
-
-        for (ExpressionNode actual : node.getActuals()) {
-            visit(actual, context);
-        }
-
-        if (context.getMethod(node.getName()) == null) {
-            Utilities.semantError(context.getCurrentClass())
-                    .println("Static dispatch to undefined method " + node.getName() + ".");
-        }
-
-        return null;
-    }
-
-    @Override
     public Void visit(CaseNode node, ScopeContext context) {
 
         visit(node.getExpr(), context);
 
         for (BranchNode branch : node.getCases()) {
-            if (branch.getName().equals(TreeConstants.self)) {
+            if (branch.getName() == TreeConstants.self) {
                 Utilities.semantError(context.getCurrentClass())
                         .println("'self' cannot be bound in a 'case' branch.");
             }
@@ -268,7 +306,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     @Override
     public Void visit(AssignNode node, ScopeContext context) {
 
-        if (node.getName().equals(TreeConstants.self)) {
+        if (node.getName() == TreeConstants.self) {
             Utilities.semantError(context.getCurrentClass())
                     .println("Cannot assign to 'self'.");
         }

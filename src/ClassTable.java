@@ -10,8 +10,10 @@ import java.util.*;
  */
 class ClassTable {
 
-    private final Map<Symbol, ArrayList<ClassNode>> inheritanceMap = new HashMap<>();
     private final Map<Symbol, ClassNode> classMap = new HashMap<>();
+    private final Map<Symbol, ArrayList<ClassNode>> inheritanceMap = new HashMap<>();
+    private final Map<Symbol, Map<Symbol, AttributeNode>> classAttributesMap = new HashMap<>();
+    private final Map<Symbol, Map<Symbol, MethodNode>> classMethodsMap = new HashMap<>();
 
     /**
      * Creates data structures representing basic Cool classes (Object,
@@ -192,16 +194,62 @@ class ClassTable {
 	/* Do something with Object_class, IO_class, Int_class,
            Bool_class, and Str_class here */
 
-        // Only add these two built-in classes to the inheritance map, since they allow inheritance
+        // Only add these two classes to the inheritance map, since they allow inheritance
         inheritanceMap.put(TreeConstants.Object_, new ArrayList<>());
+        inheritanceMap.get(TreeConstants.Object_).add(IO_class);
         inheritanceMap.put(TreeConstants.IO, new ArrayList<>());
 
-        // For access to built-in class nodes, child -> parent relationship
+        // For access to built-in class nodes, also child -> parent access through getParent()
         classMap.put(TreeConstants.Object_, Object_class);
         classMap.put(TreeConstants.IO, IO_class);
         classMap.put(TreeConstants.Str, Str_class);
         classMap.put(TreeConstants.Int, Int_class);
         classMap.put(TreeConstants.Bool, Bool_class);
+
+        // Add built-in class's methods and attributes for fast access during type-checking.
+        classMethodsMap.put(Object_class.getName(), new HashMap<>());
+        for (FeatureNode feature : Object_class.getFeatures()) {
+            classMethodsMap.get(Object_class.getName()).put(((MethodNode) feature).getName(), (MethodNode) feature);
+        }
+
+        // Add Object class's methods to all built in class's method maps
+        Map<Symbol, MethodNode> objectMethods = classMethodsMap.get(TreeConstants.Object_);
+
+        classMethodsMap.put(IO_class.getName(), new HashMap<>());
+        classMethodsMap.get(IO_class.getName()).putAll(objectMethods);
+
+        for (FeatureNode feature : IO_class.getFeatures()) {
+            classMethodsMap.get(IO_class.getName()).put(((MethodNode) feature).getName(), (MethodNode) feature);
+        }
+
+        classAttributesMap.put(Int_class.getName(), new HashMap<>());
+        classMethodsMap.put(Int_class.getName(), new HashMap<>());
+        classMethodsMap.get(Int_class.getName()).putAll(objectMethods);
+
+        for (FeatureNode feature : Int_class.getFeatures()) {
+            classAttributesMap.get(Int_class.getName()).put(((AttributeNode) feature).getName(), (AttributeNode) feature);
+        }
+
+        classAttributesMap.put(Bool_class.getName(), new HashMap<>());
+        classMethodsMap.put(Bool_class.getName(), new HashMap<>());
+        classMethodsMap.get(Bool_class.getName()).putAll(objectMethods);
+
+        for (FeatureNode feature : Bool_class.getFeatures()) {
+            classAttributesMap.get(Bool_class.getName()).put(((AttributeNode) feature).getName(), (AttributeNode) feature);
+        }
+
+        classMethodsMap.put(Str_class.getName(), new HashMap<>());
+        classMethodsMap.get(Str_class.getName()).putAll(objectMethods);
+        classAttributesMap.put(Str_class.getName(), new HashMap<>());
+
+        for (FeatureNode feature : Str_class.getFeatures()) {
+            if (feature instanceof MethodNode) {
+                classMethodsMap.get(Str_class.getName()).put(((MethodNode) feature).getName(), (MethodNode) feature);
+            } else if (feature instanceof AttributeNode) {
+                classAttributesMap.get(Str_class.getName()).put(((AttributeNode) feature).getName(), (AttributeNode) feature);
+            }
+        }
+
     }
 
     public ClassTable(List<ClassNode> cls) {
@@ -211,70 +259,10 @@ class ClassTable {
         if (Utilities.errors()) {
             Utilities.fatalError(Utilities.ErrorCode.ERROR_SEMANT);
         }
-        checkInheritanceCycles(cls);
-    }
-
-    public Map<Symbol, ArrayList<ClassNode>> getInheritanceMap() {
-        return inheritanceMap;
-    }
-
-    public Map<Symbol, ClassNode> getClassMap() {
-        return classMap;
-    }
-
-    public boolean isTypeDefined(Symbol type) {
-        return inheritanceMap.containsKey(type);
-    }
-
-    public boolean isSubType(Symbol sub, Symbol supertype) {
-        if (sub.equals(supertype)) return true;
-        ClassNode currentClass = classMap.get(sub);
-        while (currentClass != null) {
-            if (currentClass.getName().equals(supertype)) {
-                return true;
-            }
-            currentClass = classMap.get(currentClass.getParent());
+        checkInheritanceIsAcyclic(cls);
+        if (Utilities.errors()) {
+            Utilities.fatalError(Utilities.ErrorCode.ERROR_SEMANT);
         }
-        return false;
-    }
-
-    public Symbol getLeastUpperBound(Symbol type1, Symbol type2) {
-        Set<Symbol> visited = new HashSet<>();
-
-        ClassNode current1 = classMap.get(type1);
-        ClassNode current2 = classMap.get(type2);
-
-        while (current1 != null || current2 != null) {
-            if (current1 != null) {
-                if (visited.contains(current1.getName())) {
-                    return current1.getName();
-                }
-                visited.add(current1.getName());
-                current1 = classMap.get(current1.getParent());
-            }
-
-            if (current2 != null) {
-                if (visited.contains(current2.getName())) {
-                    return current2.getName();
-                }
-                visited.add(current2.getName());
-                current2 = classMap.get(current2.getParent());
-            }
-        }
-        return TreeConstants.Object_;
-    }
-
-    public boolean isBuiltInMethod(Symbol methodName) {
-        return (methodName == TreeConstants.cool_abort
-                || methodName == TreeConstants.type_name
-                || methodName == TreeConstants.copy
-                || methodName == TreeConstants.length
-                || methodName == TreeConstants.concat
-                || methodName == TreeConstants.substr
-                || methodName == TreeConstants.out_string
-                || methodName == TreeConstants.out_int
-                || methodName == TreeConstants.in_string
-                || methodName == TreeConstants.in_int);
     }
 
     private void checkClassRedefinitions(List<ClassNode> cls) {
@@ -285,7 +273,7 @@ class ClassTable {
                     || className == TreeConstants.Str
                     || className == TreeConstants.Int
                     || className == TreeConstants.Bool
-                    || className.equals(TreeConstants.SELF_TYPE)) {
+                    || className == TreeConstants.SELF_TYPE) {
                 Utilities.semantError(c).println("Redefinition of basic class " + className + ".");
                 continue;
             }
@@ -328,7 +316,7 @@ class ClassTable {
         }
     }
 
-    private void checkInheritanceCycles(List<ClassNode> cls) {
+    private void checkInheritanceIsAcyclic(List<ClassNode> cls) {
         final int WHITE = 0;  // Unvisited node
         final int GREY = 1;   // Node currently being visited (part of DFS path)
         final int BLACK = 2;  // Fully visited node (no cycles found in its path)
@@ -366,6 +354,7 @@ class ClassTable {
 
         colorMap.put(className, GREY);
 
+        // DFS Traversal
         for (ClassNode child : inheritanceMap.get(className)) {
             detectCycles(child.getName(), colorMap, cycleClasses, GREY, BLACK);
         }
@@ -381,6 +370,63 @@ class ClassTable {
         }
     }
 
+    public Map<Symbol, ClassNode> getClassMap() {
+        return classMap;
+    }
+
+    public Map<Symbol, ArrayList<ClassNode>> getInheritanceMap() {
+        return inheritanceMap;
+    }
+
+    public Map<Symbol, Map<Symbol, AttributeNode>> getClassAttributesMap() {
+        return classAttributesMap;
+    }
+
+    public Map<Symbol, Map<Symbol, MethodNode>> getClassMethodsMap() {
+        return classMethodsMap;
+    }
+
+    public boolean isTypeDefined(Symbol type) {
+        return inheritanceMap.containsKey(type);
+    }
+
+    public boolean isSubType(Symbol sub, Symbol supertype) {
+        if (sub == TreeConstants.No_type) return true;
+        if (sub == supertype) return true;
+        ClassNode currentClass = classMap.get(sub);
+        Symbol className = currentClass.getName();
+        while (className != TreeConstants.Object_ && className != supertype) {
+            currentClass = classMap.get(currentClass.getParent());
+            className = currentClass.getName();
+        }
+        return className == supertype;
+    }
+
+    public Symbol getLeastUpperBound(Symbol type1, Symbol type2) {
+        Set<Symbol> visited = new HashSet<>();
+
+        ClassNode current1 = classMap.get(type1);
+        ClassNode current2 = classMap.get(type2);
+
+        while (current1 != null || current2 != null) {
+            if (current1 != null) {
+                if (visited.contains(current1.getName())) {
+                    return current1.getName();
+                }
+                visited.add(current1.getName());
+                current1 = classMap.get(current1.getParent());
+            }
+
+            if (current2 != null) {
+                if (visited.contains(current2.getName())) {
+                    return current2.getName();
+                }
+                visited.add(current2.getName());
+                current2 = classMap.get(current2.getParent());
+            }
+        }
+        return TreeConstants.Object_;
+    }
 
 }
 

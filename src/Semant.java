@@ -4,15 +4,10 @@ import ast.Symbol;
 class Semant {
 
     public static ClassTable classTable;
-    public static SymbolTable<Symbol> symTable;
+    public static SymbolTable<Symbol> symTable = new SymbolTable<>();
 
     public static void analyze(ProgramNode program) {
         classTable = new ClassTable(program.getClasses());
-        symTable = new SymbolTable<>();
-
-        if (Utilities.errors()) {
-            Utilities.fatalError(Utilities.ErrorCode.ERROR_SEMANT);
-        }
 
         ScopeCheckingVisitor scopecheckVisitor = new ScopeCheckingVisitor();
         program.accept(scopecheckVisitor, null);
