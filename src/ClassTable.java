@@ -295,7 +295,7 @@ class ClassTable {
             Symbol parent = c.getParent();
 
             // Ignore classes that aren't in classMap, so we don't double report errors
-            if (c != classMap.get(c.getName())) {
+            if (c != classMap.get(className)) {
                 continue;
             }
 
@@ -393,39 +393,32 @@ class ClassTable {
     public boolean isSubType(Symbol sub, Symbol supertype) {
         if (sub == TreeConstants.No_type) return true;
         if (sub == supertype) return true;
+
         ClassNode currentClass = classMap.get(sub);
-        Symbol className = currentClass.getName();
-        while (className != TreeConstants.Object_ && className != supertype) {
+        while (currentClass.getName() != TreeConstants.Object_ && currentClass.getName() != supertype) {
             currentClass = classMap.get(currentClass.getParent());
-            className = currentClass.getName();
         }
-        return className == supertype;
+
+        return currentClass.getName() == supertype;
     }
 
     public Symbol getLeastUpperBound(Symbol type1, Symbol type2) {
+        if (type1 == type2) return type1;
+
         Set<Symbol> visited = new HashSet<>();
 
-        ClassNode current1 = classMap.get(type1);
-        ClassNode current2 = classMap.get(type2);
-
-        while (current1 != null || current2 != null) {
-            if (current1 != null) {
-                if (visited.contains(current1.getName())) {
-                    return current1.getName();
-                }
-                visited.add(current1.getName());
-                current1 = classMap.get(current1.getParent());
-            }
-
-            if (current2 != null) {
-                if (visited.contains(current2.getName())) {
-                    return current2.getName();
-                }
-                visited.add(current2.getName());
-                current2 = classMap.get(current2.getParent());
-            }
+        ClassNode first = classMap.get(type1);
+        while (first != null) {
+            visited.add(first.getName());
+            first = classMap.get(first.getParent());
         }
-        return TreeConstants.Object_;
+
+        ClassNode second = classMap.get(type2);
+        while (!visited.contains(second.getName())) {
+            second = classMap.get(second.getParent());
+        }
+
+        return second.getName();
     }
 
 }
