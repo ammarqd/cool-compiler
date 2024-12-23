@@ -140,7 +140,8 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                                 + method.getName() + ".");
                     } else {
                         context.addMethod(method.getName(), method);
-                        classMethodsMap.get(className).put(method.getName(), method);
+                        classMethodsMap.computeIfAbsent(className, k -> new HashMap<>())
+                                .put(method.getName(), method);
                     }
                 }
             }

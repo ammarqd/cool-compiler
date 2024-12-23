@@ -1,5 +1,7 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
+
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -169,14 +171,16 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             classMethods = Semant.classTable.getClassMethodsMap().get(exprType);
         }
 
-        if (classMethods == null || classMethods.get(node.getName()) == null) {
+        if (!classMethods.containsKey(node.getName())) {
             Utilities.semantError(context.getCurrentClass())
                     .println("Dispatch to undefined method " + node.getName() + ".");
             return TreeConstants.Object_;
         }
 
+        MethodNode method = classMethods.get(node.getName());
         List<FormalNode> formals = classMethods.get(node.getName()).getFormals();
         List<ExpressionNode> actuals = node.getActuals();
+
         if (formals.size() != actuals.size()) {
             Utilities.semantError(context.getCurrentClass())
                     .println("Method " + node.getName() + " called with wrong number of arguments. " +
@@ -199,10 +203,12 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             }
         }
 
-        if (exprType == TreeConstants.SELF_TYPE) {
-            node.setType(TreeConstants.SELF_TYPE);
-        } else {
+        Symbol returnType = method.getReturn_type();
+
+        if (returnType == TreeConstants.SELF_TYPE) {
             node.setType(exprType);
+        } else {
+            node.setType(returnType);
         }
 
         return node.getType();
@@ -240,9 +246,15 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             Utilities.semantError(context.getCurrentClass()).println("Type " + exprType +
                     " of assigned expression does not conform to declared type " +
                     idType + " of identifier b.");
-            return TreeConstants.Object_;
+            node.setType(TreeConstants.Object_);
+            return node.getType();
         }
-        return exprType;
+        node.setType(exprType);
+        return node.getType();
+    }
+
+    public Symbol visit(CaseNode node, TypeContext context) {
+        return node.getType();
     }
 
     public Symbol visit(NewNode node, TypeContext context) {
@@ -256,7 +268,6 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         if (t1 != t2) {
             Utilities.semantError(context.getCurrentClass()).println("Illegal comparison with a basic type.");
             node.setType(TreeConstants.Object_);
-            return node.getType();
         } else {
             node.setType(TreeConstants.Bool);
         }
@@ -343,13 +354,21 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
     public Symbol visit(ObjectNode node, TypeContext context) {
         if (node.getName() == TreeConstants.self) {
             node.setType(TreeConstants.SELF_TYPE);
-        } else {
-            Symbol idType = Semant.symTable.lookup(node.getName());
-            if (idType == null) {
-                idType = context.getAttribute(node.getName()).getType_decl();
-            }
-            node.setType(idType);
+            return TreeConstants.SELF_TYPE;
         }
+
+        Symbol idType = Semant.symTable.lookup(node.getName());
+        if (idType != null) {
+            node.setType(idType);
+        } else {
+            AttributeNode attr = context.getAttribute(node.getName());
+            if (attr != null) {
+                node.setType(attr.getType_decl());
+            } else {
+                node.setType(TreeConstants.Object_);
+            }
+        }
+
         return node.getType();
     }
 
