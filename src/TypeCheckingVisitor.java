@@ -1,7 +1,6 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -148,7 +147,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
 
         Symbol bodyType = visit(node.getExpr(), context);
 
-        if (!Semant.classTable.isSubType(bodyType, node.getReturn_type())) {
+        if (!Semant.classTable.isSubType(bodyType, node.getReturn_type(), context.getCurrentClass().getName())) {
             Utilities.semantError(context.getCurrentClass())
                     .println("Inferred return type " + bodyType + " of method " + node.getName()
                             + " does not conform to declared return type " + node.getReturn_type() + ".");
@@ -228,9 +227,11 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             Utilities.semantError(context.getCurrentClass()).println("Inferred type "
                     + initType + " of initialization of " + node.getIdentifier()
                     + " does not conform to identifier's declared type " + idType);
-            node.setType(bodyType);
+            node.setType(TreeConstants.Object_);
             return node.getType();
         }
+
+        node.setType(bodyType);
 
         Semant.symTable.exitScope();
         return node.getType();
@@ -253,6 +254,39 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         return node.getType();
     }
 
+    public Symbol visit(CondNode node, TypeContext context) {
+        visit(node.getCond(), context);
+        Symbol type = Semant.classTable.getLeastUpperBound(
+                visit(node.getThenExpr(), context),
+                visit(node.getElseExpr(), context));
+        node.setType(type);
+        return type;
+    }
+
+    public Symbol visit(LoopNode node, TypeContext context) {
+        Symbol condType = visit(node.getCond(), context);
+        if (condType != TreeConstants.Bool) {
+            Utilities.semantError(context.getCurrentClass()).println("Loop condition does not have type Bool.");
+        }
+        visit(node.getBody(), context);
+        node.setType(TreeConstants.Object_);
+        return node.getType();
+    }
+
+    public Symbol visit(BlockNode node, TypeContext context) {
+        List<ExpressionNode> expressions = node.getExprs();
+        int length = expressions.size();
+
+        for (int i = 0; i < length - 1; i++) {
+            visit(expressions.get(i), context);
+        }
+
+        Symbol type = visit(expressions.get(length - 1), context);
+        node.setType(type);
+        return type;
+    }
+
+
     public Symbol visit(CaseNode node, TypeContext context) {
         return node.getType();
     }
@@ -262,15 +296,23 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         return node.getType();
     }
 
+    public Symbol visit(CompNode node, TypeContext context) {
+        node.setType(visit(node.getE1(), context));
+        return node.getType();
+    }
+
     public Symbol visit(EqNode node, TypeContext context) {
         Symbol t1 = visit(node.getE1(), context);
         Symbol t2 = visit(node.getE2(), context);
-        if (t1 != t2) {
-            Utilities.semantError(context.getCurrentClass()).println("Illegal comparison with a basic type.");
-            node.setType(TreeConstants.Object_);
-        } else {
-            node.setType(TreeConstants.Bool);
+        if ((t1 == TreeConstants.Int || t1 == TreeConstants.Str || t1 == TreeConstants.Bool)
+                || (t2 == TreeConstants.Int || t2 == TreeConstants.Str || t2 == TreeConstants.Bool)) {
+            if (t1 != t2) {
+                Utilities.semantError(context.getCurrentClass()).println("Illegal comparison with a basic type.");
+                node.setType(TreeConstants.Object_);
+                return TreeConstants.Object_;
+            }
         }
+        node.setType(TreeConstants.Bool);
         return node.getType();
     }
 
@@ -281,7 +323,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             Utilities.semantError(context.getCurrentClass()).println("non-Int arguments: " + t1 + " <= " + t2);
             node.setType(TreeConstants.Object_);
         } else {
-            node.setType(TreeConstants.Int);
+            node.setType(TreeConstants.Bool);
         }
         return node.getType();
     }
@@ -293,7 +335,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             Utilities.semantError(context.getCurrentClass()).println("non-Int arguments: " + t1 + " < " + t2);
             node.setType(TreeConstants.Object_);
         } else {
-            node.setType(TreeConstants.Int);
+            node.setType(TreeConstants.Bool);
         }
         return node.getType();
     }
