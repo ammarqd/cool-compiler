@@ -1,10 +1,7 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 class TypeContext {
     private final ClassNode currentClass;
@@ -138,7 +135,6 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
 
     @Override
     public Symbol visit(MethodNode node, TypeContext context) {
-
         Semant.symTable.enterScope();
 
         for (FormalNode f : node.getFormals()) {
@@ -195,6 +191,62 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             if (!Semant.classTable.isSubType(actualType, formalType)) {
                 Utilities.semantError(context.getCurrentClass())
                         .println("In call to method " + node.getName() +
+                                ", argument #" + (i + 1) + " type " + actualType +
+                                " does not conform to formal parameter type " + formalType);
+                node.setType(TreeConstants.Object_);
+                return node.getType();
+            }
+        }
+
+        Symbol returnType = method.getReturn_type();
+
+        if (returnType == TreeConstants.SELF_TYPE) {
+            node.setType(exprType);
+        } else {
+            node.setType(returnType);
+        }
+
+        return node.getType();
+    }
+
+    @Override
+    public Symbol visit(StaticDispatchNode node, TypeContext context) {
+        Symbol exprType = visit(node.getExpr(), context);
+        Symbol dispatchType = node.getType_name();
+
+        if (!Semant.classTable.isSubType(exprType, dispatchType)) {
+            Utilities.semantError(context.getCurrentClass())
+                    .println("Expression type " + exprType + " does not conform to declared static dispatch type " + dispatchType);
+            return TreeConstants.Object_;
+        }
+
+        Map<Symbol, MethodNode> classMethods = Semant.classTable.getClassMethodsMap().get(dispatchType);
+
+        if (!classMethods.containsKey(node.getName())) {
+            Utilities.semantError(context.getCurrentClass())
+                    .println("Static dispatch to undefined method " + node.getName() + ".");
+            return TreeConstants.Object_;
+        }
+
+        MethodNode method = classMethods.get(node.getName());
+        List<FormalNode> formals = method.getFormals();
+        List<ExpressionNode> actuals = node.getActuals();
+
+        if (formals.size() != actuals.size()) {
+            Utilities.semantError(context.getCurrentClass())
+                    .println("Method " + node.getName() + " called with wrong number of arguments. " +
+                            "Expected: " + formals.size() + ", got: " + actuals.size());
+            node.setType(TreeConstants.Object_);
+            return node.getType();
+        }
+
+        for (int i = 0; i < formals.size(); i++) {
+            Symbol formalType = formals.get(i).getType_decl();
+            Symbol actualType = visit(actuals.get(i), context);
+
+            if (!Semant.classTable.isSubType(actualType, formalType)) {
+                Utilities.semantError(context.getCurrentClass())
+                        .println("In static dispatch to method " + node.getName() +
                                 ", argument #" + (i + 1) + " type " + actualType +
                                 " does not conform to formal parameter type " + formalType);
                 node.setType(TreeConstants.Object_);
@@ -288,7 +340,44 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
 
 
     public Symbol visit(CaseNode node, TypeContext context) {
-        return node.getType();
+        visit(node.getExpr(), context);
+
+        Set<Symbol> seenTypes = new HashSet<>();
+        Symbol type = null;
+
+        for (BranchNode branch : node.getCases()) {
+            Symbol branchDeclType = branch.getType_decl();
+
+            if (branchDeclType == TreeConstants.SELF_TYPE) {
+                Utilities.semantError(context.getCurrentClass())
+                        .println("Identifier " + branch.getName() + " declared with type SELF_TYPE in case branch");
+                node.setType(TreeConstants.Object_);
+                return node.getType();
+            }
+
+            if (seenTypes.contains(branchDeclType)) {
+                Utilities.semantError(context.getCurrentClass())
+                        .println("Duplicate branch " + branchDeclType + " in case statement");
+                node.setType(TreeConstants.Object_);
+                return node.getType();
+            }
+            seenTypes.add(branchDeclType);
+
+            Symbol branchType = visit(branch, context);
+            type = (type == null) ? branchType : Semant.classTable.getLeastUpperBound(type, branchType);
+        }
+
+        node.setType(type);
+        return type;
+    }
+
+    @Override
+    public Symbol visit(BranchNode node, TypeContext context) {
+        Semant.symTable.enterScope();
+        Semant.symTable.addId(node.getName(), node.getType_decl());
+        Symbol branchType = visit(node.getExpr(), context);
+        Semant.symTable.exitScope();
+        return branchType;
     }
 
     public Symbol visit(NewNode node, TypeContext context) {
