@@ -390,18 +390,6 @@ class ClassTable {
         return inheritanceMap.containsKey(type);
     }
 
-    public boolean isSubType(Symbol sub, Symbol supertype) {
-        if (sub == TreeConstants.No_type) return true;
-        if (sub == supertype) return true;
-
-        ClassNode currentClass = classMap.get(sub);
-        while (currentClass.getName() != TreeConstants.Object_ && currentClass.getName() != supertype) {
-            currentClass = classMap.get(currentClass.getParent());
-        }
-
-        return currentClass.getName() == supertype;
-    }
-
     public boolean isSubType(Symbol sub, Symbol supertype, Symbol className) {
         ClassNode currentClass = null;
         if (sub == TreeConstants.No_type) return true;
@@ -422,7 +410,13 @@ class ClassTable {
         return currentClass.getName() == supertype;
     }
 
-    public Symbol getLeastUpperBound(Symbol type1, Symbol type2) {
+    public Symbol getLeastUpperBound(Symbol type1, Symbol type2, Symbol className) {
+        if (type1 == TreeConstants.SELF_TYPE) {
+            type1 = className;
+        }
+        if (type2 == TreeConstants.SELF_TYPE) {
+            type2 = className;
+        }
         if (type1 == type2) return type1;
 
         Set<Symbol> visited = new HashSet<>();

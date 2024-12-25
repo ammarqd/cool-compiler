@@ -1,5 +1,7 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
+
+import java.rmi.server.UID;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -139,9 +141,22 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                         Utilities.semantError(classNode).println("Incompatible number of formal parameters in redefined method "
                                 + method.getName() + ".");
                     } else {
-                        context.addMethod(method.getName(), method);
-                        classMethodsMap.computeIfAbsent(className, k -> new HashMap<>())
-                                .put(method.getName(), method);
+                        boolean error = false;
+                        for (int i = 0; i < method.getFormals().size(); i++) {
+                            Symbol currentParamType = method.getFormals().get(i).getType_decl();
+                            Symbol parentParamType = parentMethod.getFormals().get(i).getType_decl();
+                            if (currentParamType != parentParamType) {
+                                error = true;
+                                Utilities.semantError(classNode).println("In redefined method " +
+                                        method.getName() + ", parameter type " + currentParamType
+                                        + " is different from original type " + parentParamType);
+                            }
+                        }
+                        if (!error) {
+                            context.addMethod(method.getName(), method);
+                            classMethodsMap.computeIfAbsent(className, k -> new HashMap<>())
+                                    .put(method.getName(), method);
+                        }
                     }
                 }
             }

@@ -1,6 +1,7 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
 
+import java.lang.reflect.Type;
 import java.util.*;
 
 class TypeContext {
@@ -117,7 +118,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
     public Symbol visit(AttributeNode node, TypeContext context) {
         Symbol idType = node.getType_decl();
         Symbol exprType = visit(node.getInit(), context);
-        if (!Semant.classTable.isSubType(exprType, idType)) {
+        if (!Semant.classTable.isSubType(exprType, idType, context.getCurrentClass().getName())) {
             Utilities.semantError(context.getCurrentClass()).println("Inferred type " +
                     exprType + " of initialization of attribute " + node.getName()
                     + " does not conform to declared type " + idType + ".");
@@ -188,7 +189,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             Symbol formalType = formals.get(i).getType_decl();
             Symbol actualType = visit(actuals.get(i), context);
 
-            if (!Semant.classTable.isSubType(actualType, formalType)) {
+            if (!Semant.classTable.isSubType(actualType, formalType, context.getCurrentClass().getName())) {
                 Utilities.semantError(context.getCurrentClass())
                         .println("In call to method " + node.getName() +
                                 ", argument #" + (i + 1) + " type " + actualType +
@@ -214,7 +215,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         Symbol exprType = visit(node.getExpr(), context);
         Symbol dispatchType = node.getType_name();
 
-        if (!Semant.classTable.isSubType(exprType, dispatchType)) {
+        if (!Semant.classTable.isSubType(exprType, dispatchType, context.getCurrentClass().getName())) {
             Utilities.semantError(context.getCurrentClass())
                     .println("Expression type " + exprType + " does not conform to declared static dispatch type " + dispatchType);
             return TreeConstants.Object_;
@@ -244,7 +245,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             Symbol formalType = formals.get(i).getType_decl();
             Symbol actualType = visit(actuals.get(i), context);
 
-            if (!Semant.classTable.isSubType(actualType, formalType)) {
+            if (!Semant.classTable.isSubType(actualType, formalType, context.getCurrentClass().getName())) {
                 Utilities.semantError(context.getCurrentClass())
                         .println("In static dispatch to method " + node.getName() +
                                 ", argument #" + (i + 1) + " type " + actualType +
@@ -275,7 +276,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
 
         Symbol bodyType = visit(node.getBody(), context);
 
-        if (!Semant.classTable.isSubType(initType, idType)) {
+        if (!Semant.classTable.isSubType(initType, idType, context.getCurrentClass().getName())) {
             Utilities.semantError(context.getCurrentClass()).println("Inferred type "
                     + initType + " of initialization of " + node.getIdentifier()
                     + " does not conform to identifier's declared type " + idType);
@@ -295,7 +296,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             idType = context.getAttribute(node.getName()).getType_decl();
         }
         Symbol exprType = visit(node.getExpr(), context);
-        if (!Semant.classTable.isSubType(exprType, idType)) {
+        if (!Semant.classTable.isSubType(exprType, idType, context.getCurrentClass().getName())) {
             Utilities.semantError(context.getCurrentClass()).println("Type " + exprType +
                     " of assigned expression does not conform to declared type " +
                     idType + " of identifier b.");
@@ -310,7 +311,8 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         visit(node.getCond(), context);
         Symbol type = Semant.classTable.getLeastUpperBound(
                 visit(node.getThenExpr(), context),
-                visit(node.getElseExpr(), context));
+                visit(node.getElseExpr(), context),
+                context.getCurrentClass().getName());
         node.setType(type);
         return type;
     }
@@ -364,7 +366,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             seenTypes.add(branchDeclType);
 
             Symbol branchType = visit(branch, context);
-            type = (type == null) ? branchType : Semant.classTable.getLeastUpperBound(type, branchType);
+            type = (type == null) ? branchType : Semant.classTable.getLeastUpperBound(type, branchType, context.getCurrentClass().getName());
         }
 
         node.setType(type);
@@ -386,6 +388,16 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
     }
 
     public Symbol visit(CompNode node, TypeContext context) {
+        node.setType(visit(node.getE1(), context));
+        return node.getType();
+    }
+
+    public Symbol visit(NegNode node, TypeContext context) {
+        node.setType(visit(node.getE1(), context));
+        return node.getType();
+    }
+
+    public Symbol visit(IsVoidNode node, TypeContext context) {
         node.setType(visit(node.getE1(), context));
         return node.getType();
     }
