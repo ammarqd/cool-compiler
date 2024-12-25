@@ -139,7 +139,13 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         Semant.symTable.enterScope();
 
         for (FormalNode f : node.getFormals()) {
-            Semant.symTable.addId(f.getName(), f.getType_decl());
+            if (f.getType_decl() == TreeConstants.SELF_TYPE) {
+                Utilities.semantError(context.getCurrentClass()).println("Formal parameter " + f.getName()
+                        + " cannot have type " + TreeConstants.SELF_TYPE + ".");
+                Semant.symTable.addId(f.getName(), TreeConstants.Object_);
+            } else {
+                Semant.symTable.addId(f.getName(), f.getType_decl());
+            }
         }
 
         Symbol bodyType = visit(node.getExpr(), context);
