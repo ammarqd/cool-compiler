@@ -1,46 +1,32 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
-
-import java.lang.reflect.Type;
 import java.util.*;
 
 class TypeContext {
     private final ClassNode currentClass;
-    private final Map<Symbol, MethodNode> methodMap;
-    private final Map<Symbol, AttributeNode> attributeMap;
+    private final Map<Symbol, MethodNode> methodsMap;
+    private final Map<Symbol, AttributeNode> attributesMap;
 
     public TypeContext(ClassNode currentClass) {
         this.currentClass = currentClass;
-        this.attributeMap = new HashMap<>();
-        this.methodMap = new HashMap<>();
+        this.attributesMap = new HashMap<>();
+        this.methodsMap = new HashMap<>();
     }
 
     public ClassNode getCurrentClass() {
         return currentClass;
     }
 
-    public MethodNode getMethod(Symbol name) {
-        return methodMap.get(name);
-    }
-
     public AttributeNode getAttribute(Symbol name) {
-        return attributeMap.get(name);
+        return attributesMap.get(name);
     }
 
-    public void addMethod(Symbol name, MethodNode method) {
-        methodMap.put(name, method);
+    public Map<Symbol, AttributeNode> getAttributesMap() {
+        return attributesMap;
     }
 
-    public void addAttribute(Symbol name, AttributeNode attr) {
-        attributeMap.put(name, attr);
-    }
-
-    public Map<Symbol, AttributeNode> getAttributeMap() {
-        return attributeMap;
-    }
-
-    public Map<Symbol, MethodNode> getMethodMap() {
-        return methodMap;
+    public Map<Symbol, MethodNode> getMethodsMap() {
+        return methodsMap;
     }
 }
 
@@ -59,15 +45,15 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             Map<Symbol, MethodNode> currentClassMethods = Semant.classTable.getClassMethodsMap().get(classNode.getName());
 
             TypeContext typeContext = new TypeContext(classNode);
-            typeContext.getMethodMap().putAll(defaultObjectMethods);
+            typeContext.getMethodsMap().putAll(defaultObjectMethods);
 
             if (currentClassAttributes != null) {
-                typeContext.getAttributeMap().putAll(currentClassAttributes);
+                typeContext.getAttributesMap().putAll(currentClassAttributes);
 
             }
 
             if (currentClassMethods != null) {
-                typeContext.getMethodMap().putAll(currentClassMethods);
+                typeContext.getMethodsMap().putAll(currentClassMethods);
             }
 
             visitClassHierarchy(classNode, typeContext);
@@ -88,14 +74,14 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             Map<Symbol, MethodNode> currentClassMethods = Semant.classTable.getClassMethodsMap().get(child.getName());
 
             TypeContext typeContext = new TypeContext(child);
-            typeContext.getMethodMap().putAll(defaultObjectMethods);
+            typeContext.getMethodsMap().putAll(defaultObjectMethods);
 
             if (currentClassAttributes != null) {
-                typeContext.getAttributeMap().putAll(currentClassAttributes);
+                typeContext.getAttributesMap().putAll(currentClassAttributes);
             }
 
             if (currentClassMethods != null) {
-                typeContext.getMethodMap().putAll(currentClassMethods);
+                typeContext.getMethodsMap().putAll(currentClassMethods);
             }
 
             visitClassHierarchy(child, typeContext);
@@ -148,6 +134,13 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             }
         }
 
+        if (!Semant.classTable.isTypeDefined(node.getReturn_type())) {
+            Utilities.semantError(context.getCurrentClass()).println("Undefined return type " + node.getReturn_type()
+                    + " in method " + node.getName() + ".");
+            visit(node.getExpr(), context);
+            return TreeConstants.Object_;
+        }
+
         Symbol bodyType = visit(node.getExpr(), context);
 
         if (!Semant.classTable.isSubType(bodyType, node.getReturn_type(), context.getCurrentClass().getName())) {
@@ -185,10 +178,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
 
         if (formals.size() != actuals.size()) {
             Utilities.semantError(context.getCurrentClass())
-                    .println("Method " + node.getName() + " called with wrong number of arguments. " +
-                            "Expected: " + formals.size() + ", got: " + actuals.size());
-            node.setType(TreeConstants.Object_);
-            return node.getType();
+                    .println("Method " + node.getName() + " called with wrong number of arguments.");
         }
 
         for (int i = 0; i < formals.size(); i++) {
@@ -197,11 +187,8 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
 
             if (!Semant.classTable.isSubType(actualType, formalType, context.getCurrentClass().getName())) {
                 Utilities.semantError(context.getCurrentClass())
-                        .println("In call to method " + node.getName() +
-                                ", argument #" + (i + 1) + " type " + actualType +
-                                " does not conform to formal parameter type " + formalType);
-                node.setType(TreeConstants.Object_);
-                return node.getType();
+                        .println("In call of method " + node.getName() + ", type " + actualType + " of parameter "
+                                + formals.get(i).getName() + " does not conform to declared type " + formalType + ".");
             }
         }
 
@@ -223,7 +210,8 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
 
         if (!Semant.classTable.isSubType(exprType, dispatchType, context.getCurrentClass().getName())) {
             Utilities.semantError(context.getCurrentClass())
-                    .println("Expression type " + exprType + " does not conform to declared static dispatch type " + dispatchType);
+                    .println("Expression type " + exprType + " does not conform to declared static dispatch type "
+                            + dispatchType + ".");
             return TreeConstants.Object_;
         }
 
@@ -241,10 +229,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
 
         if (formals.size() != actuals.size()) {
             Utilities.semantError(context.getCurrentClass())
-                    .println("Method " + node.getName() + " called with wrong number of arguments. " +
-                            "Expected: " + formals.size() + ", got: " + actuals.size());
-            node.setType(TreeConstants.Object_);
-            return node.getType();
+                    .println("Method " + node.getName() + " called with wrong number of arguments.");
         }
 
         for (int i = 0; i < formals.size(); i++) {
@@ -253,11 +238,8 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
 
             if (!Semant.classTable.isSubType(actualType, formalType, context.getCurrentClass().getName())) {
                 Utilities.semantError(context.getCurrentClass())
-                        .println("In static dispatch to method " + node.getName() +
-                                ", argument #" + (i + 1) + " type " + actualType +
-                                " does not conform to formal parameter type " + formalType);
-                node.setType(TreeConstants.Object_);
-                return node.getType();
+                        .println("In call of method " + node.getName() + ", type " + actualType + " of parameter "
+                                + formals.get(i).getName() + " does not conform to declared type " + formalType + ".");
             }
         }
 
@@ -285,7 +267,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         if (!Semant.classTable.isSubType(initType, idType, context.getCurrentClass().getName())) {
             Utilities.semantError(context.getCurrentClass()).println("Inferred type "
                     + initType + " of initialization of " + node.getIdentifier()
-                    + " does not conform to identifier's declared type " + idType);
+                    + " does not conform to identifier's declared type " + idType + ".");
             node.setType(TreeConstants.Object_);
             return node.getType();
         }
@@ -299,7 +281,12 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
     public Symbol visit(AssignNode node, TypeContext context) {
         Symbol idType = Semant.symTable.lookup(node.getName());
         if (idType == null) {
-            idType = context.getAttribute(node.getName()).getType_decl();
+            AttributeNode attr = context.getAttribute(node.getName());
+            if (attr != null) {
+                idType = attr.getType_decl();
+            } else {
+                idType = TreeConstants.Object_;
+            }
         }
         Symbol exprType = visit(node.getExpr(), context);
         if (!Semant.classTable.isSubType(exprType, idType, context.getCurrentClass().getName())) {
@@ -358,14 +345,14 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
 
             if (branchDeclType == TreeConstants.SELF_TYPE) {
                 Utilities.semantError(context.getCurrentClass())
-                        .println("Identifier " + branch.getName() + " declared with type SELF_TYPE in case branch");
+                        .println("Identifier " + branch.getName() + " declared with type SELF_TYPE in case branch.");
                 node.setType(TreeConstants.Object_);
                 return node.getType();
             }
 
             if (seenTypes.contains(branchDeclType)) {
                 Utilities.semantError(context.getCurrentClass())
-                        .println("Duplicate branch " + branchDeclType + " in case statement");
+                        .println("Duplicate branch " + branchDeclType + " in case statement.");
                 node.setType(TreeConstants.Object_);
                 return node.getType();
             }
@@ -389,7 +376,13 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
     }
 
     public Symbol visit(NewNode node, TypeContext context) {
-        node.setType(node.getType_name());
+        if (!Semant.classTable.isTypeDefined(node.getType_name())) {
+            Utilities.semantError(context.getCurrentClass()).println("'new' used with undefined class "
+                    + node.getType_name() + ".");
+            node.setType(TreeConstants.Object_);
+        } else {
+            node.setType(node.getType_name());
+        }
         return node.getType();
     }
 

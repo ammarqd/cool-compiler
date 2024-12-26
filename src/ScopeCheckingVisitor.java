@@ -1,11 +1,8 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
-
-import java.rmi.server.UID;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-
 
 class ScopeContext {
     private final ClassNode currentClass;

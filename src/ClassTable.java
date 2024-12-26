@@ -269,7 +269,8 @@ class ClassTable {
         for (ClassNode c : cls) {
             Symbol className = c.getName();
 
-            if (className == TreeConstants.IO
+            if (className == TreeConstants.Object_
+                    || className == TreeConstants.IO
                     || className == TreeConstants.Str
                     || className == TreeConstants.Int
                     || className == TreeConstants.Bool
@@ -387,7 +388,8 @@ class ClassTable {
     }
 
     public boolean isTypeDefined(Symbol type) {
-        return inheritanceMap.containsKey(type);
+        if (type == TreeConstants.SELF_TYPE) return true;
+        return classMap.containsKey(type);
     }
 
     public boolean isSubType(Symbol sub, Symbol supertype, Symbol className) {
