@@ -393,17 +393,15 @@ class ClassTable {
     }
 
     public boolean isSubType(Symbol sub, Symbol supertype, Symbol className) {
-        ClassNode currentClass = null;
         if (sub == TreeConstants.No_type) return true;
+
         if (sub == TreeConstants.SELF_TYPE) {
             if (supertype == TreeConstants.SELF_TYPE) {
                 return true;
-            } else {
-                currentClass = classMap.get(className);
             }
-        } else {
-            currentClass = classMap.get(sub);
+            sub = className;
         }
+        ClassNode currentClass = classMap.get(sub);
 
         while (currentClass.getName() != TreeConstants.Object_ && currentClass.getName() != supertype) {
             currentClass = classMap.get(currentClass.getParent());
