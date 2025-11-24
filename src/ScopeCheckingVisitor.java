@@ -60,34 +60,32 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
             ClassNode classNode = objectClasses.get(i);
             ScopeContext rootContext = new ScopeContext(classNode);
 
+            Map<Symbol, Map<Symbol, AttributeNode>> classAttributesMap = Semant.classTable.getClassAttributesMap();
+            Map<Symbol, Map<Symbol, MethodNode>> classMethodsMap = Semant.classTable.getClassMethodsMap();
+
+            Map<Symbol, AttributeNode> attributesMap = new HashMap<>();
+            Map<Symbol, MethodNode> methodsMap = new HashMap<>();
+
             // Add the default Object methods to methodMap
             for (FeatureNode feature : objectNode.getFeatures()) {
                 rootContext.addMethod(((MethodNode)feature).getName(), (MethodNode)feature);
+                methodsMap.put(((MethodNode)feature).getName(), (MethodNode)feature);
             }
 
-            Map<Symbol, Map<Symbol, AttributeNode>> classAttributesMap = Semant.classTable.getClassAttributesMap();
-            Map<Symbol, Map<Symbol, MethodNode>> classMethodsMap = Semant.classTable.getClassMethodsMap();
+            Symbol className = classNode.getName();
 
             for (FeatureNode feature : classNode.getFeatures()) {
                 if (feature instanceof AttributeNode attribute) {
                     rootContext.addAttribute(attribute.getName(), attribute);
+                    attributesMap.put(attribute.getName(), attribute);
                 } else if (feature instanceof MethodNode method) {
                     rootContext.addMethod(method.getName(), method);
+                    methodsMap.put(method.getName(), method);
                 }
             }
 
-            Symbol className = classNode.getName();
-            for (Map.Entry<Symbol, AttributeNode> entry : rootContext.getAttributesMap().entrySet()) {
-                classAttributesMap
-                        .computeIfAbsent(className, k -> new HashMap<>())
-                        .putIfAbsent(entry.getKey(), entry.getValue());
-            }
-
-            for (Map.Entry<Symbol, MethodNode> entry : rootContext.getMethodsMap().entrySet()) {
-                classMethodsMap
-                        .computeIfAbsent(className, k -> new HashMap<>())
-                        .putIfAbsent(entry.getKey(), entry.getValue());
-            }
+            classAttributesMap.put(className, attributesMap);
+            classMethodsMap.put(className, methodsMap);
 
             ArrayList<ClassNode> children = Semant.classTable.getInheritanceMap().get(classNode.getName());
             for (ClassNode child : children) {
@@ -111,14 +109,16 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
         context.getAttributesMap().putAll(parentContext.getAttributesMap());
         context.getMethodsMap().putAll(parentContext.getMethodsMap());
 
+        Map<Symbol, AttributeNode> attributesMap = new HashMap<>(context.getAttributesMap());
+        Map<Symbol, MethodNode> methodsMap = new HashMap<>(context.getMethodsMap());
+
         Symbol className = context.getCurrentClass().getName();
 
         for (FeatureNode feature : classNode.getFeatures()) {
             if (feature instanceof AttributeNode attribute) {
                 if (!context.getAttributesMap().containsKey(attribute.getName())) {
                     context.addAttribute(attribute.getName(), attribute);
-                    classAttributesMap.computeIfAbsent(className, k -> new HashMap<>())
-                            .put(attribute.getName(), attribute);
+                    attributesMap.put(attribute.getName(), attribute);
                 } else {
                     Utilities.semantError(classNode).println("Attribute " + attribute.getName()
                             + " is an attribute of an inherited class.");
@@ -126,8 +126,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
             } else if (feature instanceof MethodNode method) {
                 if (!context.getMethodsMap().containsKey(method.getName())) {
                     context.addMethod(method.getName(), method);
-                    classMethodsMap.computeIfAbsent(className, k -> new HashMap<>())
-                            .put(method.getName(), method);
+                    methodsMap.put(method.getName(), method);
                 } else {
                     MethodNode parentMethod = context.getMethod(method.getName());
                     if (parentMethod.getReturn_type() != method.getReturn_type()) {
@@ -151,25 +150,15 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                         }
                         if (!error) {
                             context.addMethod(method.getName(), method);
-                            classMethodsMap.computeIfAbsent(className, k -> new HashMap<>())
-                                    .put(method.getName(), method);
+                            methodsMap.put(method.getName(), method);
                         }
                     }
                 }
             }
         }
 
-        for (Map.Entry<Symbol, AttributeNode> entry : context.getAttributesMap().entrySet()) {
-            classAttributesMap
-                    .computeIfAbsent(className, k -> new HashMap<>())
-                    .putIfAbsent(entry.getKey(), entry.getValue());
-        }
-
-        for (Map.Entry<Symbol, MethodNode> entry : context.getMethodsMap().entrySet()) {
-            classMethodsMap
-                    .computeIfAbsent(className, k -> new HashMap<>())
-                    .putIfAbsent(entry.getKey(), entry.getValue());
-        }
+        classAttributesMap.put(className, attributesMap);
+        classMethodsMap.put(className, methodsMap);
 
         ArrayList<ClassNode> children = Semant.classTable.getInheritanceMap().get(classNode.getName());
         for (ClassNode child : children) {
