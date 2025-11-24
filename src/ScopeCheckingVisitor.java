@@ -116,43 +116,50 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
         for (FeatureNode feature : classNode.getFeatures()) {
             if (feature instanceof AttributeNode attribute) {
-                if (!context.getAttributesMap().containsKey(attribute.getName())) {
-                    context.addAttribute(attribute.getName(), attribute);
-                    attributesMap.put(attribute.getName(), attribute);
-                } else {
+                if (context.getAttributesMap().containsKey(attribute.getName())) {
                     Utilities.semantError(classNode).println("Attribute " + attribute.getName()
                             + " is an attribute of an inherited class.");
+                    continue;
                 }
-            } else if (feature instanceof MethodNode method) {
+                context.addAttribute(attribute.getName(), attribute);
+                attributesMap.put(attribute.getName(), attribute);
+            }
+
+            else if (feature instanceof MethodNode method) {
                 if (!context.getMethodsMap().containsKey(method.getName())) {
                     context.addMethod(method.getName(), method);
                     methodsMap.put(method.getName(), method);
-                } else {
-                    MethodNode parentMethod = context.getMethod(method.getName());
-                    if (parentMethod.getReturn_type() != method.getReturn_type()) {
-                        Utilities.semantError(classNode).println("In redefined method " + method.getName()
-                                + ", return type " + method.getReturn_type() + " is different from original return type "
-                                + parentMethod.getReturn_type() + ".");
-                    } else if (method.getFormals().size() != parentMethod.getFormals().size()) {
-                        Utilities.semantError(classNode).println("Incompatible number of formal parameters in redefined method "
-                                + method.getName() + ".");
-                    } else {
-                        boolean error = false;
-                        for (int i = 0; i < method.getFormals().size(); i++) {
-                            Symbol currentParamType = method.getFormals().get(i).getType_decl();
-                            Symbol parentParamType = parentMethod.getFormals().get(i).getType_decl();
-                            if (currentParamType != parentParamType) {
-                                error = true;
-                                Utilities.semantError(classNode).println("In redefined method " +
-                                        method.getName() + ", parameter type " + currentParamType
-                                        + " is different from original type " + parentParamType);
-                            }
-                        }
-                        if (!error) {
-                            context.addMethod(method.getName(), method);
-                            methodsMap.put(method.getName(), method);
-                        }
+                    continue;
+                }
+
+                MethodNode parentMethod = context.getMethod(method.getName());
+                if (parentMethod.getReturn_type() != method.getReturn_type()) {
+                    Utilities.semantError(classNode).println("In redefined method " + method.getName()
+                            + ", return type " + method.getReturn_type() + " is different from original return type "
+                            + parentMethod.getReturn_type() + ".");
+                    continue;
+                }
+
+                if (method.getFormals().size() != parentMethod.getFormals().size()) {
+                    Utilities.semantError(classNode).println("Incompatible number of formal parameters in redefined method "
+                            + method.getName() + ".");
+                    continue;
+                }
+
+                boolean error = false;
+                for (int i = 0; i < method.getFormals().size(); i++) {
+                    Symbol currentParamType = method.getFormals().get(i).getType_decl();
+                    Symbol parentParamType = parentMethod.getFormals().get(i).getType_decl();
+                    if (currentParamType != parentParamType) {
+                        error = true;
+                        Utilities.semantError(classNode).println("In redefined method " +
+                                method.getName() + ", parameter type " + currentParamType
+                                + " is different from original type " + parentParamType);
                     }
+                }
+                if (!error) {
+                    context.addMethod(method.getName(), method);
+                    methodsMap.put(method.getName(), method);
                 }
             }
         }
