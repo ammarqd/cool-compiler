@@ -1,4 +1,4 @@
-# Cool-Compiler
+# cool-compiler
 A Compiler for the Cool programming language, written in Java and utilising ANTLR to define the grammar.
 
 - [x] Lexer (63/63 test cases passed!)
