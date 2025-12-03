@@ -1,8 +1,7 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+
+import java.util.*;
 
 class ScopeContext {
     private final ClassNode currentClass;
@@ -13,136 +12,125 @@ class ScopeContext {
         this.currentClass = currentClass;
         this.attributesMap = new HashMap<>();
         this.methodsMap = new HashMap<>();
+
+        for (FeatureNode feature : currentClass.getFeatures()) {
+            if (feature instanceof AttributeNode attribute) {
+                attributesMap.put(attribute.getName(), attribute);
+            } else if (feature instanceof MethodNode method) {
+                methodsMap.put(method.getName(), method);
+            }
+        }
+    }
+
+    public ScopeContext(ClassNode currentClass, ScopeContext parent) {
+        this.currentClass = currentClass;
+        this.attributesMap = new HashMap<>();
+        this.methodsMap = new HashMap<>();
+
+        this.attributesMap.putAll(parent.attributesMap);
+        this.methodsMap.putAll(parent.methodsMap);
+
+        for (FeatureNode feature : currentClass.getFeatures()) {
+            if (feature instanceof AttributeNode attribute) {
+                attributesMap.put(attribute.getName(), attribute);
+            } else if (feature instanceof MethodNode method) {
+                methodsMap.put(method.getName(), method);
+            }
+        }
     }
 
     public ClassNode getCurrentClass() {
         return currentClass;
     }
 
-    public MethodNode getMethod(Symbol name) {
-        return methodsMap.get(name);
-    }
-
     public AttributeNode getAttribute(Symbol name) {
         return attributesMap.get(name);
     }
 
-    public void addMethod(Symbol name, MethodNode method) {
-        methodsMap.put(name, method);
+    public MethodNode getMethod(Symbol name) {
+        return methodsMap.get(name);
     }
 
     public void addAttribute(Symbol name, AttributeNode attr) {
         attributesMap.put(name, attr);
     }
 
-    public Map<Symbol, AttributeNode> getAttributesMap() {
-        return attributesMap;
+    public void addMethod(Symbol name, MethodNode method) {
+        methodsMap.put(name, method);
     }
 
-    public Map<Symbol, MethodNode> getMethodsMap() {
-        return methodsMap;
+    public Set<Symbol> getAttributeNames() {
+        return Collections.unmodifiableSet(attributesMap.keySet());
     }
+
+    public Set<Symbol> getMethodNames() {
+        return Collections.unmodifiableSet(methodsMap.keySet());
+    }
+
 }
 
 public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
     @Override
-    public Void visit(ProgramNode node, ScopeContext context) {
+    public Void visit(ProgramNode node, ScopeContext rootContext) {
         if (!Semant.classTable.isTypeDefined(TreeConstants.Main)) {
             Utilities.semantError().println("Class Main is not defined.");
         }
 
-        ClassNode objectNode = Semant.classTable.getClassMap().get(TreeConstants.Object_);
         ArrayList<ClassNode> objectClasses = Semant.classTable.getInheritanceMap().get(TreeConstants.Object_);
 
-        // Initial traversal to validate method overrides
         for (int i = objectClasses.size() - 1; i >= 0; i--) {
             ClassNode classNode = objectClasses.get(i);
-            ScopeContext rootContext = new ScopeContext(classNode);
-
-            Map<Symbol, Map<Symbol, AttributeNode>> classAttributesMap = Semant.classTable.getClassAttributesMap();
-            Map<Symbol, Map<Symbol, MethodNode>> classMethodsMap = Semant.classTable.getClassMethodsMap();
-
-            Map<Symbol, AttributeNode> attributesMap = new HashMap<>();
-            Map<Symbol, MethodNode> methodsMap = new HashMap<>();
-
-            // Add the default Object methods to methodMap
-            for (FeatureNode feature : objectNode.getFeatures()) {
-                rootContext.addMethod(((MethodNode)feature).getName(), (MethodNode)feature);
-                methodsMap.put(((MethodNode)feature).getName(), (MethodNode)feature);
-            }
-
-            Symbol className = classNode.getName();
-
-            for (FeatureNode feature : classNode.getFeatures()) {
-                if (feature instanceof AttributeNode attribute) {
-                    rootContext.addAttribute(attribute.getName(), attribute);
-                    attributesMap.put(attribute.getName(), attribute);
-                } else if (feature instanceof MethodNode method) {
-                    rootContext.addMethod(method.getName(), method);
-                    methodsMap.put(method.getName(), method);
-                }
-            }
-
-            classAttributesMap.put(className, attributesMap);
-            classMethodsMap.put(className, methodsMap);
+            ScopeContext context = new ScopeContext(classNode, rootContext);
 
             ArrayList<ClassNode> children = Semant.classTable.getInheritanceMap().get(classNode.getName());
             for (ClassNode child : children) {
-                validateFeatureOverrides(child, rootContext);
+                validateFeatureOverrides(child, context);
             }
         }
 
         // Traverse the full inheritance hierarchy,
         for (int i = objectClasses.size() - 1; i >= 0; i--) {
             visitInheritanceHierarchy(objectClasses.get(i));
+
         }
 
         return null;
     }
 
     private void validateFeatureOverrides(ClassNode classNode, ScopeContext parentContext) {
-        ScopeContext context = new ScopeContext(classNode);
+        ScopeContext context = new ScopeContext(classNode, parentContext);
         Map<Symbol, Map<Symbol, AttributeNode>> classAttributesMap = Semant.classTable.getClassAttributesMap();
         Map<Symbol, Map<Symbol, MethodNode>> classMethodsMap = Semant.classTable.getClassMethodsMap();
 
-        context.getAttributesMap().putAll(parentContext.getAttributesMap());
-        context.getMethodsMap().putAll(parentContext.getMethodsMap());
-
-        Map<Symbol, AttributeNode> attributesMap = new HashMap<>(context.getAttributesMap());
-        Map<Symbol, MethodNode> methodsMap = new HashMap<>(context.getMethodsMap());
-
-        Symbol className = context.getCurrentClass().getName();
-
         for (FeatureNode feature : classNode.getFeatures()) {
             if (feature instanceof AttributeNode attribute) {
-                if (context.getAttributesMap().containsKey(attribute.getName())) {
+                if (context.getAttribute(attribute.getName()) != null) {
                     Utilities.semantError(classNode).println("Attribute " + attribute.getName()
                             + " is an attribute of an inherited class.");
                     continue;
                 }
                 context.addAttribute(attribute.getName(), attribute);
-                attributesMap.put(attribute.getName(), attribute);
             }
 
             else if (feature instanceof MethodNode method) {
-                if (!context.getMethodsMap().containsKey(method.getName())) {
+                if (context.getMethod(method.getName()) == null) {
                     context.addMethod(method.getName(), method);
-                    methodsMap.put(method.getName(), method);
                     continue;
                 }
 
                 MethodNode parentMethod = context.getMethod(method.getName());
-                if (parentMethod.getReturn_type() != method.getReturn_type()) {
-                    Utilities.semantError(classNode).println("In redefined method " + method.getName()
-                            + ", return type " + method.getReturn_type() + " is different from original return type "
-                            + parentMethod.getReturn_type() + ".");
-                    continue;
-                }
 
                 if (method.getFormals().size() != parentMethod.getFormals().size()) {
                     Utilities.semantError(classNode).println("Incompatible number of formal parameters in redefined method "
                             + method.getName() + ".");
+                    continue;
+                }
+
+                if (parentMethod.getReturn_type() != method.getReturn_type()) {
+                    Utilities.semantError(classNode).println("In redefined method " + method.getName()
+                            + ", return type " + method.getReturn_type() + " is different from original return type "
+                            + parentMethod.getReturn_type() + ".");
                     continue;
                 }
 
@@ -159,13 +147,21 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
                 }
                 if (!error) {
                     context.addMethod(method.getName(), method);
-                    methodsMap.put(method.getName(), method);
                 }
             }
         }
 
-        classAttributesMap.put(className, attributesMap);
-        classMethodsMap.put(className, methodsMap);
+        Map<Symbol, AttributeNode> attributes = new HashMap<>();
+        for (Symbol name : context.getAttributeNames()) {
+            attributes.put(name, context.getAttribute(name));
+        }
+        classAttributesMap.put(classNode.getName(), attributes);
+
+        Map<Symbol, MethodNode> methods = new HashMap<>();
+        for (Symbol name : context.getMethodNames()) {
+            methods.put(name, context.getMethod(name));
+        }
+        classMethodsMap.put(classNode.getName(), methods);
 
         ArrayList<ClassNode> children = Semant.classTable.getInheritanceMap().get(classNode.getName());
         for (ClassNode child : children) {
@@ -178,12 +174,16 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
 
         Map<Symbol, AttributeNode> classAttributes = Semant.classTable.getClassAttributesMap().get(classNode.getName());
         if (classAttributes != null) {
-            context.getAttributesMap().putAll(classAttributes);
+            for (Symbol name : classAttributes.keySet()) {
+                context.addAttribute(name, classAttributes.get(name));
+            }
         }
 
         Map<Symbol, MethodNode> classMethods = Semant.classTable.getClassMethodsMap().get(classNode.getName());
         if (classMethods != null) {
-            context.getMethodsMap().putAll(classMethods);
+            for (Symbol name : classMethods.keySet()) {
+                context.addMethod(name, classMethods.get(name));
+            }
         }
 
         visit(classNode, context); // Visit current class, utilising the visitor pattern, and DFS traversal
@@ -197,11 +197,12 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     @Override
     public Void visit(ClassNode node, ScopeContext context) {
 
-        if (node.getName() == TreeConstants.Main &&
-                Semant.classTable.getClassMethodsMap().get(TreeConstants.Main).get(TreeConstants.main_meth) == null) {
+        if (node.getName() == TreeConstants.Main
+                && context.getMethod(TreeConstants.main_meth) == null) {
             Utilities.semantError(context.getCurrentClass())
                     .println("No 'main' method in class Main.");
         }
+
 
         Semant.symTable.enterScope();
 

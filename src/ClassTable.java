@@ -371,8 +371,8 @@ class ClassTable {
         }
     }
 
-    public Map<Symbol, ClassNode> getClassMap() {
-        return classMap;
+    public ClassNode getClass(Symbol className) {
+        return classMap.get(className);
     }
 
     public Map<Symbol, ArrayList<ClassNode>> getInheritanceMap() {
