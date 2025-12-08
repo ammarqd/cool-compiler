@@ -374,6 +374,11 @@ class ClassTable {
 
             for (FeatureNode feature : currentClass.getFeatures()) {
                 if (feature instanceof AttributeNode attribute) {
+                    if (seenAttributes.contains(attribute.getName())) {
+                        Utilities.semantError(currentClass).println("Attribute " + attribute.getName()
+                                + " is multiply defined in class.");
+                        continue;
+                    }
                     attributes.put(attribute.getName(), attribute);
                     seenAttributes.add(attribute.getName());
                 } else if (feature instanceof MethodNode method) {
