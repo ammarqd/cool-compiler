@@ -4,87 +4,53 @@ import java.util.*;
 
 class TypeContext {
     private final ClassNode currentClass;
+    private final ClassTable classTable = Semant.classTable;
     private final Map<Symbol, MethodNode> methodsMap;
     private final Map<Symbol, AttributeNode> attributesMap;
 
     public TypeContext(ClassNode currentClass) {
         this.currentClass = currentClass;
-        this.attributesMap = new HashMap<>();
-        this.methodsMap = new HashMap<>();
+        this.methodsMap = new HashMap<>(classTable.getClassMethodsMap().get(currentClass.getName()));
+        this.attributesMap = new HashMap<>(classTable.getClassAttributesMap().get(currentClass.getName()));
     }
 
-    public ClassNode getCurrentClass() {
+    public ClassNode getCurrentClass () {
         return currentClass;
     }
 
-    public AttributeNode getAttribute(Symbol name) {
+    public AttributeNode getAttribute (Symbol name){
         return attributesMap.get(name);
     }
 
-    public Map<Symbol, AttributeNode> getAttributesMap() {
-        return attributesMap;
-    }
-
-    public Map<Symbol, MethodNode> getMethodsMap() {
-        return methodsMap;
+    public MethodNode getMethod (Symbol name){
+        return methodsMap.get(name);
     }
 }
+
 
 public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
 
     @Override
     public Symbol visit(ProgramNode node, TypeContext context) {
-
         ArrayList<ClassNode> objectClasses = Semant.classTable.getInheritanceMap().get(TreeConstants.Object_);
-        Map<Symbol, MethodNode> defaultObjectMethods = Semant.classTable.getClassMethodsMap().get(TreeConstants.Object_);
 
+        // Traverse the full inheritance hierarchy,
         for (int i = objectClasses.size() - 1; i >= 0; i--) {
-            ClassNode classNode = objectClasses.get(i);
-
-            Map<Symbol, AttributeNode> currentClassAttributes = Semant.classTable.getClassAttributesMap().get(classNode.getName());
-            Map<Symbol, MethodNode> currentClassMethods = Semant.classTable.getClassMethodsMap().get(classNode.getName());
-
-            TypeContext typeContext = new TypeContext(classNode);
-            typeContext.getMethodsMap().putAll(defaultObjectMethods);
-
-            if (currentClassAttributes != null) {
-                typeContext.getAttributesMap().putAll(currentClassAttributes);
-
-            }
-
-            if (currentClassMethods != null) {
-                typeContext.getMethodsMap().putAll(currentClassMethods);
-            }
-
-            visitClassHierarchy(classNode, typeContext);
+            visitInheritanceHierarchy(objectClasses.get(i));
         }
+
         return null;
     }
 
 
-    private void visitClassHierarchy(ClassNode classNode, TypeContext context) {
+    private void visitInheritanceHierarchy(ClassNode classNode) {
+        TypeContext context = new TypeContext(classNode);
 
-        visit(classNode, context); // Visit current class, utilising the visitor pattern
+        visit(classNode, context); // Visit current class, utilising the visitor pattern, and DFS traversal
 
         ArrayList<ClassNode> children = Semant.classTable.getInheritanceMap().get(classNode.getName());
         for (ClassNode child : children) {
-
-            Map<Symbol, MethodNode> defaultObjectMethods = Semant.classTable.getClassMethodsMap().get(TreeConstants.Object_);
-            Map<Symbol, AttributeNode> currentClassAttributes = Semant.classTable.getClassAttributesMap().get(child.getName());
-            Map<Symbol, MethodNode> currentClassMethods = Semant.classTable.getClassMethodsMap().get(child.getName());
-
-            TypeContext typeContext = new TypeContext(child);
-            typeContext.getMethodsMap().putAll(defaultObjectMethods);
-
-            if (currentClassAttributes != null) {
-                typeContext.getAttributesMap().putAll(currentClassAttributes);
-            }
-
-            if (currentClassMethods != null) {
-                typeContext.getMethodsMap().putAll(currentClassMethods);
-            }
-
-            visitClassHierarchy(child, typeContext);
+            visitInheritanceHierarchy(child);
         }
     }
 

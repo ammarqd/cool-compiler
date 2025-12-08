@@ -208,46 +208,33 @@ class ClassTable {
         classMap.put(TreeConstants.Bool, Bool_class);
 
         // Add built-in class's methods and attributes for fast access during type-checking.
-        classMethodsMap.put(Object_class.getName(), new HashMap<>());
+        Map<Symbol, MethodNode> objectMethods = new HashMap<>();
         for (FeatureNode feature : Object_class.getFeatures()) {
-            classMethodsMap.get(Object_class.getName()).put(((MethodNode) feature).getName(), (MethodNode) feature);
+            objectMethods.put(((MethodNode) feature).getName(), (MethodNode) feature);
         }
+        classMethodsMap.put(TreeConstants.Object_, objectMethods);
+        classAttributesMap.put(TreeConstants.Object_, new HashMap<>());
 
-        // Add Object class's methods to all built in class's method maps
-        Map<Symbol, MethodNode> objectMethods = classMethodsMap.get(TreeConstants.Object_);
+        ClassNode[] builtInClasses = {IO_class, Int_class, Bool_class, Str_class};
 
-        classMethodsMap.put(IO_class.getName(), new HashMap<>());
-        classMethodsMap.get(IO_class.getName()).putAll(objectMethods);
+        for (ClassNode builtInClass : builtInClasses) {
+            classAttributesMap.put(builtInClass.getName(), new HashMap<>());
+            classMethodsMap.put(builtInClass.getName(), new HashMap<>());
 
-        for (FeatureNode feature : IO_class.getFeatures()) {
-            classMethodsMap.get(IO_class.getName()).put(((MethodNode) feature).getName(), (MethodNode) feature);
-        }
+            classMethodsMap.get(builtInClass.getName()).putAll(objectMethods);
 
-        classAttributesMap.put(Int_class.getName(), new HashMap<>());
-        classMethodsMap.put(Int_class.getName(), new HashMap<>());
-        classMethodsMap.get(Int_class.getName()).putAll(objectMethods);
-
-        for (FeatureNode feature : Int_class.getFeatures()) {
-            classAttributesMap.get(Int_class.getName()).put(((AttributeNode) feature).getName(), (AttributeNode) feature);
-        }
-
-        classAttributesMap.put(Bool_class.getName(), new HashMap<>());
-        classMethodsMap.put(Bool_class.getName(), new HashMap<>());
-        classMethodsMap.get(Bool_class.getName()).putAll(objectMethods);
-
-        for (FeatureNode feature : Bool_class.getFeatures()) {
-            classAttributesMap.get(Bool_class.getName()).put(((AttributeNode) feature).getName(), (AttributeNode) feature);
-        }
-
-        classMethodsMap.put(Str_class.getName(), new HashMap<>());
-        classMethodsMap.get(Str_class.getName()).putAll(objectMethods);
-        classAttributesMap.put(Str_class.getName(), new HashMap<>());
-
-        for (FeatureNode feature : Str_class.getFeatures()) {
-            if (feature instanceof MethodNode) {
-                classMethodsMap.get(Str_class.getName()).put(((MethodNode) feature).getName(), (MethodNode) feature);
-            } else if (feature instanceof AttributeNode) {
-                classAttributesMap.get(Str_class.getName()).put(((AttributeNode) feature).getName(), (AttributeNode) feature);
+            for (FeatureNode feature : builtInClass.getFeatures()) {
+                if (feature instanceof MethodNode) {
+                    classMethodsMap.get(builtInClass.getName()).put(
+                            ((MethodNode) feature).getName(),
+                            (MethodNode) feature
+                    );
+                } else if (feature instanceof AttributeNode) {
+                    classAttributesMap.get(builtInClass.getName()).put(
+                            ((AttributeNode) feature).getName(),
+                            (AttributeNode) feature
+                    );
+                }
             }
         }
 
@@ -387,10 +374,6 @@ class ClassTable {
 
             for (FeatureNode feature : currentClass.getFeatures()) {
                 if (feature instanceof AttributeNode attribute) {
-                    if (seenAttributes.contains(attribute.getName())) {
-                        Utilities.semantError(currentClass).println("Attribute " + attribute.getName()
-                                + " is multiply defined in class.");
-                    }
                     attributes.put(attribute.getName(), attribute);
                     seenAttributes.add(attribute.getName());
                 } else if (feature instanceof MethodNode method) {
@@ -431,11 +414,11 @@ class ClassTable {
 
                     methods.put(method.getName(), method);
                     seenMethods.add(method.getName());
-                    classAttributesMap.put(currentClass.getName(), attributes);
-                    classMethodsMap.put(currentClass.getName(), methods);
-
                 }
             }
+
+            classAttributesMap.put(currentClass.getName(), attributes);
+            classMethodsMap.put(currentClass.getName(), methods);
 
             ArrayList<ClassNode> children = inheritanceMap.get(currentClass.getName());
             for (ClassNode child : children) {
@@ -456,6 +439,12 @@ class ClassTable {
                 if (seenAttributes.contains(attribute.getName())) {
                     Utilities.semantError(currentClass).println("Attribute " + attribute.getName()
                             + " is multiply defined in class.");
+                    continue;
+                }
+                if (attributes.containsKey(attribute.getName())) {
+                    Utilities.semantError(currentClass).println("Attribute " + attribute.getName()
+                            + " is an attribute of an inherited class.");
+                    continue;
                 }
                 attributes.put(attribute.getName(), attribute);
                 seenAttributes.add(attribute.getName());
@@ -497,11 +486,11 @@ class ClassTable {
 
                 methods.put(method.getName(), method);
                 seenMethods.add(method.getName());
-                classAttributesMap.put(currentClass.getName(), attributes);
-                classMethodsMap.put(currentClass.getName(), methods);
-
             }
         }
+
+        classAttributesMap.put(currentClass.getName(), attributes);
+        classMethodsMap.put(currentClass.getName(), methods);
 
         ArrayList<ClassNode> children = inheritanceMap.get(currentClass.getName());
         for (ClassNode child : children) {

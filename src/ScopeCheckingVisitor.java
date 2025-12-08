@@ -1,6 +1,5 @@
 import ast.*;
 import ast.visitor.BaseVisitor;
-
 import java.util.*;
 
 class ScopeContext {
