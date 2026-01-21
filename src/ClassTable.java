@@ -362,77 +362,17 @@ class ClassTable {
 
     private void buildClassFeatureMaps() {
         Map<Symbol, MethodNode> objectMethods = classMethodsMap.get(TreeConstants.Object_);
-        ArrayList<ClassNode> objectClasses  = inheritanceMap.get(TreeConstants.Object_);
+        ArrayList<ClassNode> objectChildren = inheritanceMap.get(TreeConstants.Object_);
 
-        for (int i = objectClasses.size() - 1; i >= 0; i--) {
-            ClassNode currentClass = objectClasses.get(i);
-            Map<Symbol, AttributeNode> attributes = new HashMap<>();
-            Map<Symbol, MethodNode> methods = new HashMap<>(objectMethods);
-
-            Set<Symbol> seenAttributes = new HashSet<>();
-            Set<Symbol> seenMethods = new HashSet<>();
-
-            for (FeatureNode feature : currentClass.getFeatures()) {
-                if (feature instanceof AttributeNode attribute) {
-                    if (seenAttributes.contains(attribute.getName())) {
-                        Utilities.semantError(currentClass).println("Attribute " + attribute.getName()
-                                + " is multiply defined in class.");
-                        continue;
-                    }
-                    attributes.put(attribute.getName(), attribute);
-                    seenAttributes.add(attribute.getName());
-                } else if (feature instanceof MethodNode method) {
-                    if (objectMethods.containsKey(method.getName())) {
-                        MethodNode parentMethod = objectMethods.get(method.getName());
-                        if (method.getReturn_type() != parentMethod.getReturn_type()) {
-                            Utilities.semantError(currentClass).println("In redefined method " + method.getName()
-                                    + ", return type " + method.getReturn_type() + " is different from original return type "
-                                    + parentMethod.getReturn_type() + ".");
-                            continue;
-                        }
-
-                        if (method.getFormals().size() != parentMethod.getFormals().size()) {
-                            Utilities.semantError(currentClass).println("Incompatible number of formal parameters in redefined method "
-                                    + method.getName() + ".");
-                            continue;
-                        }
-                    }
-                    if (seenMethods.contains(method.getName())) {
-                        Utilities.semantError(currentClass).println("Method " + method.getName() + " is multiply defined.");
-                        continue;
-                    }
-
-                    if (objectMethods.containsKey(method.getName())) {
-                        MethodNode parentMethod = objectMethods.get(method.getName());
-
-                        for (int j = 0; j < method.getFormals().size(); j++) {
-                            Symbol currentParamType = method.getFormals().get(j).getType_decl();
-                            Symbol parentParamType = parentMethod.getFormals().get(j).getType_decl();
-                            if (currentParamType != parentParamType) {
-                                Utilities.semantError(currentClass).println("In redefined method " +
-                                        method.getName() + ", parameter type " + currentParamType
-                                        + " is different from original type " + parentParamType);
-                                break;
-                            }
-                        }
-                    }
-
-                    methods.put(method.getName(), method);
-                    seenMethods.add(method.getName());
-                }
-            }
-
-            classAttributesMap.put(currentClass.getName(), attributes);
-            classMethodsMap.put(currentClass.getName(), methods);
-
-            ArrayList<ClassNode> children = inheritanceMap.get(currentClass.getName());
-            for (ClassNode child : children) {
-                validateFeatures(child, attributes, methods);
-            }
+        for (int i = objectChildren.size() - 1; i >= 0; i--) {
+            ClassNode currentClass = objectChildren.get(i);
+            validateAndBuildFeatures(currentClass, new HashMap<>(), objectMethods);
         }
     }
 
-    private void validateFeatures(ClassNode currentClass, Map<Symbol, AttributeNode> parentAttributes, Map<Symbol, MethodNode> parentMethods) {
+    private void validateAndBuildFeatures(ClassNode currentClass,
+                                          Map<Symbol, AttributeNode> parentAttributes,
+                                          Map<Symbol, MethodNode> parentMethods) {
         Map<Symbol, AttributeNode> attributes = new HashMap<>(parentAttributes);
         Map<Symbol, MethodNode> methods = new HashMap<>(parentMethods);
 
@@ -440,67 +380,101 @@ class ClassTable {
         Set<Symbol> seenMethods = new HashSet<>();
 
         for (FeatureNode feature : currentClass.getFeatures()) {
-            if (feature instanceof AttributeNode attribute) {
-                if (seenAttributes.contains(attribute.getName())) {
-                    Utilities.semantError(currentClass).println("Attribute " + attribute.getName()
-                            + " is multiply defined in class.");
-                    continue;
-                }
-                if (attributes.containsKey(attribute.getName())) {
-                    Utilities.semantError(currentClass).println("Attribute " + attribute.getName()
-                            + " is an attribute of an inherited class.");
-                    continue;
-                }
-                attributes.put(attribute.getName(), attribute);
-                seenAttributes.add(attribute.getName());
-            } else if (feature instanceof MethodNode method) {
-                if (parentMethods.containsKey(method.getName())) {
-                    MethodNode parentMethod = parentMethods.get(method.getName());
-                    if (method.getReturn_type() != parentMethod.getReturn_type()) {
-                        Utilities.semantError(currentClass).println("In redefined method " + method.getName()
-                                + ", return type " + method.getReturn_type() + " is different from original return type "
-                                + parentMethod.getReturn_type() + ".");
-                        continue;
-                    }
-
-                    if (method.getFormals().size() != parentMethod.getFormals().size()) {
-                        Utilities.semantError(currentClass).println("Incompatible number of formal parameters in redefined method "
-                                + method.getName() + ".");
-                        continue;
-                    }
-                }
-                if (seenMethods.contains(method.getName())) {
-                    Utilities.semantError(currentClass).println("Method " + method.getName() + " is multiply defined.");
-                    continue;
-                }
-
-                if (parentMethods.containsKey(method.getName())) {
-                    MethodNode parentMethod = parentMethods.get(method.getName());
-
-                    for (int i = 0; i < method.getFormals().size(); i++) {
-                        Symbol currentParamType = method.getFormals().get(i).getType_decl();
-                        Symbol parentParamType = parentMethod.getFormals().get(i).getType_decl();
-                        if (currentParamType != parentParamType) {
-                            Utilities.semantError(currentClass).println("In redefined method " +
-                                    method.getName() + ", parameter type " + currentParamType
-                                    + " is different from original type " + parentParamType);
-                            break;
-                        }
-                    }
-                }
-
-                methods.put(method.getName(), method);
-                seenMethods.add(method.getName());
+            if (feature instanceof AttributeNode) {
+                processAttribute((AttributeNode) feature, currentClass, attributes,
+                        parentAttributes, seenAttributes);
+            } else if (feature instanceof MethodNode) {
+                processMethod((MethodNode) feature, currentClass, methods,
+                        parentMethods, seenMethods);
             }
         }
 
         classAttributesMap.put(currentClass.getName(), attributes);
         classMethodsMap.put(currentClass.getName(), methods);
 
+        // Recursively process children
         ArrayList<ClassNode> children = inheritanceMap.get(currentClass.getName());
         for (ClassNode child : children) {
-            validateFeatures(child, attributes, methods);
+            validateAndBuildFeatures(child, attributes, methods);
         }
+    }
+
+    private void processAttribute(AttributeNode attribute, ClassNode currentClass,
+                                  Map<Symbol, AttributeNode> attributes,
+                                  Map<Symbol, AttributeNode> parentAttributes,
+                                  Set<Symbol> seenAttributes) {
+        Symbol attrName = attribute.getName();
+
+        if (seenAttributes.contains(attrName)) {
+            Utilities.semantError(currentClass).println("Attribute " + attrName
+                    + " is multiply defined in class.");
+            return;
+        }
+
+        if (parentAttributes.containsKey(attrName)) {
+            Utilities.semantError(currentClass).println("Attribute " + attrName
+                    + " is an attribute of an inherited class.");
+            return;
+        }
+
+        attributes.put(attrName, attribute);
+        seenAttributes.add(attrName);
+    }
+
+    private void processMethod(MethodNode method, ClassNode currentClass,
+                               Map<Symbol, MethodNode> methods,
+                               Map<Symbol, MethodNode> parentMethods,
+                               Set<Symbol> seenMethods) {
+        Symbol methodName = method.getName();
+
+        // Check for duplicate definition in current class
+        if (seenMethods.contains(methodName)) {
+            Utilities.semantError(currentClass).println("Method " + methodName + " is multiply defined.");
+            return;
+        }
+
+        // Validate override if method exists in parent
+        if (parentMethods.containsKey(methodName)) {
+            if (!validateMethodOverride(method, parentMethods.get(methodName), currentClass)) {
+                return;
+            }
+        }
+
+        methods.put(methodName, method);
+        seenMethods.add(methodName);
+    }
+
+    private boolean validateMethodOverride(MethodNode method, MethodNode parentMethod, ClassNode currentClass) {
+        Symbol methodName = method.getName();
+
+        // Check return type
+        if (method.getReturn_type() != parentMethod.getReturn_type()) {
+            Utilities.semantError(currentClass).println("In redefined method " + methodName
+                    + ", return type " + method.getReturn_type() + " is different from original return type "
+                    + parentMethod.getReturn_type() + ".");
+            return false;
+        }
+
+        // Check number of parameters
+        if (method.getFormals().size() != parentMethod.getFormals().size()) {
+            Utilities.semantError(currentClass).println("Incompatible number of formal parameters in redefined method "
+                    + methodName + ".");
+            return false;
+        }
+
+        // Check parameter types
+        for (int i = 0; i < method.getFormals().size(); i++) {
+            Symbol currentParamType = method.getFormals().get(i).getType_decl();
+            Symbol parentParamType = parentMethod.getFormals().get(i).getType_decl();
+            if (currentParamType != parentParamType) {
+                Utilities.semantError(currentClass).println("In redefined method " +
+                        methodName + ", parameter type " + currentParamType
+                        + " is different from original type " + parentParamType);
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public ClassNode getClass(Symbol className) {
@@ -570,5 +544,3 @@ class ClassTable {
     }
 
 }
-
-

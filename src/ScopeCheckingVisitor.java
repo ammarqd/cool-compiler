@@ -4,14 +4,13 @@ import java.util.*;
 
 class ScopeContext {
     private final ClassNode currentClass;
-    private final ClassTable classTable = Semant.classTable;
     private final Map<Symbol, MethodNode> methodsMap;
     private final Map<Symbol, AttributeNode> attributesMap;
 
     public ScopeContext(ClassNode currentClass) {
         this.currentClass = currentClass;
-        this.methodsMap = new HashMap<>(classTable.getClassMethodsMap().get(currentClass.getName()));
-        this.attributesMap = new HashMap<>(classTable.getClassAttributesMap().get(currentClass.getName()));
+        this.methodsMap = new HashMap<>(Semant.classTable.getClassMethodsMap().get(currentClass.getName()));
+        this.attributesMap = new HashMap<>(Semant.classTable.getClassAttributesMap().get(currentClass.getName()));
     }
 
     public ClassNode getCurrentClass() {
@@ -108,6 +107,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
         if (node.getName() == TreeConstants.self) {
             Utilities.semantError(context.getCurrentClass())
                     .println("'self' cannot be the name of a formal parameter.");
+            return null;
         }
 
         if (Semant.symTable.probe(node.getName()) != null) {
