@@ -1,1 +1,1 @@
-java -cp .:/home/ammar-q/Cool-Compiler/lib/antlr-4.6-complete.jar: Frontend $@
+java -cp .:/home/ammar-q/cool-compiler/lib/antlr-4.6-complete.jar: Frontend $@
