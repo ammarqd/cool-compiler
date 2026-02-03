@@ -78,6 +78,12 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
     @Override
     public Void visit(MethodNode node, ScopeContext context) {
 
+        if (node.getName() == TreeConstants.main_meth
+        && !node.getFormals().isEmpty()) {
+           Utilities.semantError(context.getCurrentClass())
+                   .println("'main' method in class Main should have no arguments.");
+        }
+
         Semant.symTable.enterScope();
 
         for (FormalNode formal : node.getFormals()) {
@@ -162,7 +168,7 @@ public class ScopeCheckingVisitor extends BaseVisitor<Void, ScopeContext> {
         for (BranchNode branch : node.getCases()) {
             if (branch.getName() == TreeConstants.self) {
                 Utilities.semantError(context.getCurrentClass())
-                        .println("'self' cannot be bound in a 'case' branch.");
+                        .println("'self' bound in 'case'");
             }
 
             Semant.symTable.enterScope();

@@ -57,6 +57,8 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
     public Symbol visit(ClassNode node, TypeContext context) {
         Semant.symTable.enterScope();
 
+        Semant.symTable.addId(TreeConstants.self, TreeConstants.SELF_TYPE);
+
         for (FeatureNode feature : node.getFeatures()) {
             feature.accept(this, context);
         }
@@ -68,7 +70,15 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
     @Override
     public Symbol visit(AttributeNode node, TypeContext context) {
         Symbol idType = node.getType_decl();
+
+        if (!Semant.classTable.isTypeDefined(idType)) {
+            Utilities.semantError(context.getCurrentClass())
+                    .println("Class " + idType + " of attribute " + node.getName() + " is undefined.");
+            return TreeConstants.Object_;
+        }
+
         Symbol exprType = visit(node.getInit(), context);
+
         if (!Semant.classTable.isSubType(exprType, idType, context.getCurrentClass().getName())) {
             Utilities.semantError(context.getCurrentClass()).println("Inferred type " +
                     exprType + " of initialization of attribute " + node.getName()
@@ -88,7 +98,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         Semant.symTable.enterScope();
 
         for (FormalNode f : node.getFormals()) {
-            // Skip formals named 'self' - they were already reported as errors
+
             if (f.getName() == TreeConstants.self) {
                 continue;
             }
@@ -96,10 +106,9 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             if (f.getType_decl() == TreeConstants.SELF_TYPE) {
                 Utilities.semantError(context.getCurrentClass()).println("Formal parameter " + f.getName()
                         + " cannot have type " + TreeConstants.SELF_TYPE + ".");
-                Semant.symTable.addId(f.getName(), TreeConstants.Object_);
-            } else {
-                Semant.symTable.addId(f.getName(), f.getType_decl());
             }
+
+            Semant.symTable.addId(f.getName(), f.getType_decl());
         }
 
         if (!Semant.classTable.isTypeDefined(node.getReturn_type())) {
@@ -132,9 +141,17 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             classMethods = Semant.classTable.getClassMethodsMap().get(exprType);
         }
 
+        if (!Semant.classTable.isTypeDefined(exprType)) {
+            Utilities.semantError(context.getCurrentClass())
+                    .println("Dispatch on undefined class " + exprType + ".");
+            node.setType(TreeConstants.Object_);
+            return TreeConstants.Object_;
+        }
+
         if (!classMethods.containsKey(node.getName())) {
             Utilities.semantError(context.getCurrentClass())
                     .println("Dispatch to undefined method " + node.getName() + ".");
+            node.setType(TreeConstants.Object_);
             return TreeConstants.Object_;
         }
 
@@ -224,8 +241,13 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         Semant.symTable.enterScope();
 
         Symbol idType = node.getType_decl();
-        Symbol initType = visit(node.getInit(), context);
 
+        if (!Semant.classTable.isTypeDefined(idType)) {
+            Utilities.semantError(context.getCurrentClass())
+                    .println("Class " + idType + " of let-bound identifier " + node.getIdentifier() + " is undefined.");
+        }
+
+        Symbol initType = visit(node.getInit(), context);
         Semant.symTable.addId(node.getIdentifier(), idType);
 
         Symbol bodyType = visit(node.getBody(), context);
@@ -253,6 +275,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             }
         }
         Symbol exprType = visit(node.getExpr(), context);
+
         if (!Semant.classTable.isSubType(exprType, idType, context.getCurrentClass().getName())) {
             Utilities.semantError(context.getCurrentClass()).println("Type " + exprType +
                     " of assigned expression does not conform to declared type " +
@@ -263,7 +286,11 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
     }
 
     public Symbol visit(CondNode node, TypeContext context) {
-        visit(node.getCond(), context);
+        Symbol condType = visit(node.getCond(), context);
+        if (condType != TreeConstants.Bool) {
+            Utilities.semantError(context.getCurrentClass())
+                    .println("Predicate of 'if' does not have type Bool.");
+        }
         Symbol type = Semant.classTable.getLeastUpperBound(
                 visit(node.getThenExpr(), context),
                 visit(node.getElseExpr(), context),
@@ -308,15 +335,11 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
             if (branchDeclType == TreeConstants.SELF_TYPE) {
                 Utilities.semantError(context.getCurrentClass())
                         .println("Identifier " + branch.getName() + " declared with type SELF_TYPE in case branch.");
-                node.setType(TreeConstants.Object_);
-                return node.getType();
             }
 
             if (seenTypes.contains(branchDeclType)) {
                 Utilities.semantError(context.getCurrentClass())
                         .println("Duplicate branch " + branchDeclType + " in case statement.");
-                node.setType(TreeConstants.Object_);
-                return node.getType();
             }
             seenTypes.add(branchDeclType);
 
@@ -325,7 +348,7 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         }
 
         node.setType(type);
-        return type;
+        return node.getType();
     }
 
     @Override
@@ -381,8 +404,6 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
                 || (t2 == TreeConstants.Int || t2 == TreeConstants.Str || t2 == TreeConstants.Bool)) {
             if (t1 != t2) {
                 Utilities.semantError(context.getCurrentClass()).println("Illegal comparison with a basic type.");
-                node.setType(TreeConstants.Object_);
-                return TreeConstants.Object_;
             }
         }
         node.setType(TreeConstants.Bool);
@@ -394,10 +415,8 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         Symbol t2 = visit(node.getE2(), context);
         if (TreeConstants.Int != t1 || TreeConstants.Int != t2) {
             Utilities.semantError(context.getCurrentClass()).println("non-Int arguments: " + t1 + " <= " + t2);
-            node.setType(TreeConstants.Object_);
-        } else {
-            node.setType(TreeConstants.Bool);
         }
+        node.setType(TreeConstants.Bool);
         return node.getType();
     }
 
@@ -406,10 +425,8 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         Symbol t2 = visit(node.getE2(), context);
         if (TreeConstants.Int != t1 || TreeConstants.Int != t2) {
             Utilities.semantError(context.getCurrentClass()).println("non-Int arguments: " + t1 + " < " + t2);
-            node.setType(TreeConstants.Object_);
-        } else {
-            node.setType(TreeConstants.Bool);
         }
+        node.setType(TreeConstants.Bool);
         return node.getType();
     }
 
@@ -419,10 +436,8 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         Symbol t2 = visit(node.getE2(), context);
         if (TreeConstants.Int != t1 || TreeConstants.Int != t2) {
             Utilities.semantError(context.getCurrentClass()).println("non-Int arguments: " + t1 + " + " + t2);
-            node.setType(TreeConstants.Object_);
-        } else {
-            node.setType(TreeConstants.Int);
         }
+        node.setType(TreeConstants.Int);
         return node.getType();
     }
 
@@ -431,11 +446,9 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         Symbol t1 = visit(node.getE1(), context);
         Symbol t2 = visit(node.getE2(), context);
         if (TreeConstants.Int != t1 || TreeConstants.Int != t2) {
-            Utilities.semantError(context.getCurrentClass()).println("non-Int arguments: " + t1 + " - " + t2);
-            node.setType(TreeConstants.Object_);
-        } else {
-            node.setType(TreeConstants.Int);
+            Utilities.semantError(context.getCurrentClass()).println("non-Int arguments: " + t1 + " + " + t2);
         }
+        node.setType(TreeConstants.Int);
         return node.getType();
     }
 
@@ -444,11 +457,9 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         Symbol t1 = visit(node.getE1(), context);
         Symbol t2 = visit(node.getE2(), context);
         if (TreeConstants.Int != t1 || TreeConstants.Int != t2) {
-            Utilities.semantError(context.getCurrentClass()).println("non-Int arguments: " + t1 + " * " + t2);
-            node.setType(TreeConstants.Object_);
-        } else {
-            node.setType(TreeConstants.Int);
+            Utilities.semantError(context.getCurrentClass()).println("non-Int arguments: " + t1 + " + " + t2);
         }
+        node.setType(TreeConstants.Int);
         return node.getType();
     }
 
@@ -457,20 +468,14 @@ public class TypeCheckingVisitor extends BaseVisitor<Symbol, TypeContext> {
         Symbol t1 = visit(node.getE1(), context);
         Symbol t2 = visit(node.getE2(), context);
         if (TreeConstants.Int != t1 || TreeConstants.Int != t2) {
-            Utilities.semantError(context.getCurrentClass()).println("non-Int arguments: " + t1 + " / " + t2);
-            node.setType(TreeConstants.Object_);
-        } else {
-            node.setType(TreeConstants.Int);
+            Utilities.semantError(context.getCurrentClass()).println("non-Int arguments: " + t1 + " + " + t2);
         }
+        node.setType(TreeConstants.Int);
         return node.getType();
     }
 
     @Override
     public Symbol visit(ObjectNode node, TypeContext context) {
-        if (node.getName() == TreeConstants.self) {
-            node.setType(TreeConstants.SELF_TYPE);
-            return TreeConstants.SELF_TYPE;
-        }
 
         Symbol idType = Semant.symTable.lookup(node.getName());
         if (idType != null) {
