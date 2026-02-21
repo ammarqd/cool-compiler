@@ -251,6 +251,18 @@ public class CgenEmit  {
         }
     }
 
+    protected void codeDispatchTables(CgenEnv env) {
+        emitDispTableRef(env.getClassname());
+        s.print(CgenConstants.LABEL);
+
+        for (int i = 0; i < env.getNumMethods(); i++) {
+            Cgen.MethodInfo info = env.methodOffsets.lookup(i);
+            s.print(CgenConstants.WORD);
+            emitMethodRef(info.getClassname(), info.getMethodname());
+            s.println();
+        }
+    }
+
     protected void emitNewline() {
         s.println();
     }
