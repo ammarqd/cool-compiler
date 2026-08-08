@@ -113,13 +113,13 @@ public class Cgen  {
 
         @Override
         public String emitRef(String optionalDest) {
-            /* TODO */
-            return null;
+            emitter.emitLoad(optionalDest, CgenConstants.DEFAULT_OBJFIELDS + offset, CgenConstants.SELF);
+            return optionalDest;
         }
 
         @Override
         public void emitUpdate(String source) {
-            /* TODO */
+            emitter.emitStore(source, CgenConstants.DEFAULT_OBJFIELDS + offset, CgenConstants.SELF);
         }
     }
 
