@@ -23,31 +23,32 @@ feature
 formal : OBJECTID COLON TYPEID;
 
 expr
-    : defaultExpr
-    | comparisonExpr
-    ;
-
-comparisonExpr
-    : defaultExpr (LESS_EQ_OPERATOR | LESS_OPERATOR | EQ_OPERATOR) defaultExpr
-    ;
-
-defaultExpr
-    : defaultExpr AT TYPEID PERIOD OBJECTID PARENT_OPEN (expr (COMMA expr)*)? PARENT_CLOSE  # StaticDispatch
-    | defaultExpr PERIOD OBJECTID PARENT_OPEN (expr (COMMA expr)*)? PARENT_CLOSE            # DynamicDispatch
-    | OBJECTID PARENT_OPEN (expr (COMMA expr)*)? PARENT_CLOSE                               # MethodCall
-    | INT_COMPLEMENT_OPERATOR defaultExpr                                                   # Complement
-    | ISVOID defaultExpr                                                                    # IsVoid
-    | PARENT_OPEN expr PARENT_CLOSE                                                         # Parenthesis
-    | defaultExpr (MULT_OPERATOR | DIV_OPERATOR) defaultExpr                                # MultDiv
-    | defaultExpr (PLUS_OPERATOR | MINUS_OPERATOR) defaultExpr                              # AddSub
-    | NOT expr                                                                              # Not
-    | OBJECTID ASSIGN_OPERATOR expr                                                         # Assign
-    | LET OBJECTID COLON TYPEID (ASSIGN_OPERATOR expr)?
-      (COMMA OBJECTID COLON TYPEID (ASSIGN_OPERATOR expr)?)* IN expr                        # Let
-    | IF expr THEN expr ELSE expr FI                                                        # Conditional
+    : IF expr THEN expr ELSE expr FI                                                        # Conditional
     | WHILE expr LOOP expr POOL                                                             # Loop
     | CURLY_OPEN (expr SEMICOLON)+ CURLY_CLOSE                                              # Block
     | CASE expr OF (OBJECTID COLON TYPEID RIGHTARROW expr SEMICOLON)+ ESAC                  # Case
+    | LET OBJECTID COLON TYPEID (ASSIGN_OPERATOR expr)?
+                (COMMA OBJECTID COLON TYPEID (ASSIGN_OPERATOR expr)?)* IN expr              # Let
+    | OBJECTID ASSIGN_OPERATOR expr                                                         # Assign
+    | NOT expr                                                                              # Not
+    | comparisonExpr                                                                        # Comparison
+    ;
+
+
+comparisonExpr
+    : primaryExpr (LESS_EQ_OPERATOR | LESS_OPERATOR | EQ_OPERATOR) primaryExpr
+    | primaryExpr
+    ;
+
+primaryExpr
+    : primaryExpr AT TYPEID PERIOD OBJECTID PARENT_OPEN (expr (COMMA expr)*)? PARENT_CLOSE  # StaticDispatch
+    | primaryExpr PERIOD OBJECTID PARENT_OPEN (expr (COMMA expr)*)? PARENT_CLOSE            # DynamicDispatch
+    | OBJECTID PARENT_OPEN (expr (COMMA expr)*)? PARENT_CLOSE                               # MethodCall
+    | INT_COMPLEMENT_OPERATOR expr                                                          # Complement
+    | ISVOID expr                                                                           # IsVoid
+    | PARENT_OPEN expr PARENT_CLOSE                                                         # Parenthesis
+    | primaryExpr (MULT_OPERATOR | DIV_OPERATOR) expr                                       # MultDiv
+    | primaryExpr (PLUS_OPERATOR | MINUS_OPERATOR) expr                                     # AddSub
     | NEW TYPEID                                                                            # New
     | OBJECTID                                                                              # Object
     | INT_CONST                                                                             # Integer
