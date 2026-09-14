@@ -191,32 +191,87 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
 
     @Override
     public String visit(BlockNode node, String target) {
-        /* TODO */
-        return null;
+        String result = target;
+        for (ExpressionNode e : node.getExprs()) {
+            result = e.accept(this, target);
+        }
+        return result;
     }
 
     @Override
-    public String visit(PlusNode node, String data) {
-        /* TODO */
-        return null;
+    public String visit(PlusNode node, String target) {
+        storeOperand(CgenConstants.TEMP1, node.getE1());
+
+        forceDest(node.getE2(), CgenConstants.ACC);
+        Cgen.emitter.emitCopy();
+        Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
+
+        String e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, e1);
+
+        Cgen.emitter.emitAdd(CgenConstants.T1, CgenConstants.T1, CgenConstants.T2);
+        Cgen.emitter.emitStoreInt(CgenConstants.T1, CgenConstants.ACC);
+
+        env.removeLocal();
+        Cgen.emitter.emitMove(target, CgenConstants.ACC);
+        return target;
     }
 
     @Override
-    public String visit(SubNode node, String data) {
-        /* TODO */
-        return null;
+    public String visit(SubNode node, String target) {
+        storeOperand(CgenConstants.TEMP1, node.getE1());
+
+        forceDest(node.getE2(), CgenConstants.ACC);
+        Cgen.emitter.emitCopy();
+        Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
+
+        String e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, e1);
+
+        Cgen.emitter.emitSub(CgenConstants.T1, CgenConstants.T1, CgenConstants.T2);
+        Cgen.emitter.emitStoreInt(CgenConstants.T1, CgenConstants.ACC);
+
+        env.removeLocal();
+        Cgen.emitter.emitMove(target, CgenConstants.ACC);
+        return target;
     }
 
     @Override
-    public String visit(MulNode node, String data) {
-        /* TODO */
-        return null;
+    public String visit(MulNode node, String target) {
+        storeOperand(CgenConstants.TEMP1, node.getE1());
+
+        forceDest(node.getE2(), CgenConstants.ACC);
+        Cgen.emitter.emitCopy();
+        Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
+
+        String e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, e1);
+
+        Cgen.emitter.emitMul(CgenConstants.T1, CgenConstants.T1, CgenConstants.T2);
+        Cgen.emitter.emitStoreInt(CgenConstants.T1, CgenConstants.ACC);
+
+        env.removeLocal();
+        Cgen.emitter.emitMove(target, CgenConstants.ACC);
+        return target;
     }
 
     @Override
-    public String visit(DivideNode node, String data) {
-        /* TODO */
-        return null;
+    public String visit(DivideNode node, String target) {
+        storeOperand(CgenConstants.TEMP1, node.getE1());
+
+        forceDest(node.getE2(), CgenConstants.ACC);
+        Cgen.emitter.emitCopy();
+        Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
+
+        String e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, e1);
+
+        Cgen.emitter.emitDiv(CgenConstants.T1, CgenConstants.T1, CgenConstants.T2);
+        Cgen.emitter.emitStoreInt(CgenConstants.T1, CgenConstants.ACC);
+
+        env.removeLocal();
+        Cgen.emitter.emitMove(target, CgenConstants.ACC);
+        return target;
     }
 
     //The calling convention for equality_test:
@@ -261,14 +316,14 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
 
     @Override
     public String visit(BoolConstNode node, String target) {
-        /* TODO */
-        return null;
+        Cgen.emitter.emitLoadBool(target,node.getVal());
+        return target;
     }
 
     @Override
     public String visit(StringConstNode node, String target) {
-        /* TODO */
-        return null;
+        Cgen.emitter.emitLoadString(target,node.getVal());
+        return target;
     }
 
     @Override
