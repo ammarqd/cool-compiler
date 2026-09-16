@@ -1,7 +1,5 @@
 import ast.*;
 
-import java.util.List;
-
 public class CgenEmitVisitor extends CgenVisitor<String, String>{
 
     /* Emit code for expressions */
@@ -280,20 +278,64 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
     //          Initial value of $a1, otherwise
     @Override
     public String visit(EqNode node, String target) {
-        /* TODO */
-        return CgenConstants.ACC;
+        storeOperand(CgenConstants.TEMP1, node.getE1());
+
+        forceDest(node.getE2(), CgenConstants.ACC);
+        Cgen.emitter.emitMove(CgenConstants.T2, CgenConstants.ACC);
+
+        String e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitMove(CgenConstants.T1, e1);
+
+        int label = CgenEnv.getFreshLabel();
+        Cgen.emitter.emitLoadBool(CgenConstants.ACC, true);
+        Cgen.emitter.emitBeq(CgenConstants.T1, CgenConstants.T2, label);
+        Cgen.emitter.emitLoadBool(CgenConstants.A1, false);
+        Cgen.emitter.emitEqualityTest();
+        Cgen.emitter.emitLabelDef(label);
+
+        env.removeLocal();
+        Cgen.emitter.emitMove(target, CgenConstants.ACC);
+        return target;
     }
 
     @Override
-    public String visit(LEqNode node, String data) {
-        /* TODO */
-        return null;
+    public String visit(LEqNode node, String target) {
+        storeOperand(CgenConstants.TEMP1, node.getE1());
+
+        forceDest(node.getE2(), CgenConstants.ACC);
+        Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
+
+        String r_e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, r_e1);
+
+        int label = CgenEnv.getFreshLabel();
+        Cgen.emitter.emitBleq(CgenConstants.T1, CgenConstants.T2, label);
+        Cgen.emitter.emitLoadBool(CgenConstants.ACC, false);
+        Cgen.emitter.emitLabelDef(label);
+
+        env.removeLocal();
+        Cgen.emitter.emitMove(target, CgenConstants.ACC);
+        return target;
     }
 
     @Override
-    public String visit(LTNode node, String data) {
-        /* TODO */
-        return null;
+    public String visit(LTNode node, String target) {
+        storeOperand(CgenConstants.TEMP1, node.getE1());
+
+        forceDest(node.getE2(), CgenConstants.ACC);
+        Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
+
+        String r_e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, r_e1);
+
+        int label = CgenEnv.getFreshLabel();
+        Cgen.emitter.emitBlt(CgenConstants.T1, CgenConstants.T2, label);
+        Cgen.emitter.emitLoadBool(CgenConstants.ACC, false);
+        Cgen.emitter.emitLabelDef(label);
+
+        env.removeLocal();
+        Cgen.emitter.emitMove(target, CgenConstants.ACC);
+        return target;
     }
 
     @Override
