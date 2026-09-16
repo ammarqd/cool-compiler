@@ -1,7 +1,5 @@
 import ast.*;
 
-import java.util.List;
-
 public class CgenEmitVisitor extends CgenVisitor<String, String>{
 
     /* Emit code for expressions */
@@ -206,15 +204,14 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
         Cgen.emitter.emitCopy();
         Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
 
-        String e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
-        Cgen.emitter.emitFetchInt(CgenConstants.T1, e1);
+        String r_e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, r_e1);
 
         Cgen.emitter.emitAdd(CgenConstants.T1, CgenConstants.T1, CgenConstants.T2);
         Cgen.emitter.emitStoreInt(CgenConstants.T1, CgenConstants.ACC);
 
         env.removeLocal();
-        Cgen.emitter.emitMove(target, CgenConstants.ACC);
-        return target;
+        return CgenConstants.ACC;
     }
 
     @Override
@@ -225,15 +222,14 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
         Cgen.emitter.emitCopy();
         Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
 
-        String e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
-        Cgen.emitter.emitFetchInt(CgenConstants.T1, e1);
+        String r_e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, r_e1);
 
         Cgen.emitter.emitSub(CgenConstants.T1, CgenConstants.T1, CgenConstants.T2);
         Cgen.emitter.emitStoreInt(CgenConstants.T1, CgenConstants.ACC);
 
         env.removeLocal();
-        Cgen.emitter.emitMove(target, CgenConstants.ACC);
-        return target;
+        return CgenConstants.ACC;
     }
 
     @Override
@@ -244,16 +240,14 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
         Cgen.emitter.emitCopy();
         Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
 
-        String e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
-        Cgen.emitter.emitFetchInt(CgenConstants.T1, e1);
+        String r_e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, r_e1);
 
         Cgen.emitter.emitMul(CgenConstants.T1, CgenConstants.T1, CgenConstants.T2);
         Cgen.emitter.emitStoreInt(CgenConstants.T1, CgenConstants.ACC);
 
         env.removeLocal();
-        Cgen.emitter.emitMove(target, CgenConstants.ACC);
-        return target;
-    }
+        return CgenConstants.ACC;    }
 
     @Override
     public String visit(DivideNode node, String target) {
@@ -263,15 +257,14 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
         Cgen.emitter.emitCopy();
         Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
 
-        String e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
-        Cgen.emitter.emitFetchInt(CgenConstants.T1, e1);
+        String r_e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, r_e1);
 
         Cgen.emitter.emitDiv(CgenConstants.T1, CgenConstants.T1, CgenConstants.T2);
         Cgen.emitter.emitStoreInt(CgenConstants.T1, CgenConstants.ACC);
 
         env.removeLocal();
-        Cgen.emitter.emitMove(target, CgenConstants.ACC);
-        return target;
+        return CgenConstants.ACC;
     }
 
     //The calling convention for equality_test:
@@ -280,20 +273,61 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
     //          Initial value of $a1, otherwise
     @Override
     public String visit(EqNode node, String target) {
-        /* TODO */
+        storeOperand(CgenConstants.TEMP1, node.getE1());
+
+        forceDest(node.getE2(), CgenConstants.T2);
+
+        env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+
+        int label = CgenEnv.getFreshLabel();
+        Cgen.emitter.emitLoadBool(CgenConstants.ACC, true);
+        Cgen.emitter.emitBeq(CgenConstants.T1, CgenConstants.T2, label);
+        Cgen.emitter.emitLoadBool(CgenConstants.A1, false);
+        Cgen.emitter.emitEqualityTest();
+        Cgen.emitter.emitLabelDef(label);
+
+        env.removeLocal();
         return CgenConstants.ACC;
     }
 
     @Override
-    public String visit(LEqNode node, String data) {
-        /* TODO */
-        return null;
+    public String visit(LEqNode node, String target) {
+        storeOperand(CgenConstants.TEMP1, node.getE1());
+
+        forceDest(node.getE2(), CgenConstants.ACC);
+        Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
+
+        String r_e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, r_e1);
+
+        int label = CgenEnv.getFreshLabel();
+        Cgen.emitter.emitLoadBool(CgenConstants.ACC, true);
+        Cgen.emitter.emitBleq(CgenConstants.T1, CgenConstants.T2, label);
+        Cgen.emitter.emitLoadBool(CgenConstants.ACC, false);
+        Cgen.emitter.emitLabelDef(label);
+
+        env.removeLocal();
+        return CgenConstants.ACC;
     }
 
     @Override
-    public String visit(LTNode node, String data) {
-        /* TODO */
-        return null;
+    public String visit(LTNode node, String target) {
+        storeOperand(CgenConstants.TEMP1, node.getE1());
+
+        forceDest(node.getE2(), CgenConstants.ACC);
+        Cgen.emitter.emitFetchInt(CgenConstants.T2, CgenConstants.ACC);
+
+        String r_e1 = env.vars.lookup(CgenConstants.TEMP1).emitRef(CgenConstants.T1);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, r_e1);
+
+        int label = CgenEnv.getFreshLabel();
+        Cgen.emitter.emitLoadBool(CgenConstants.ACC, true);
+        Cgen.emitter.emitBlt(CgenConstants.T1, CgenConstants.T2, label);
+        Cgen.emitter.emitLoadBool(CgenConstants.ACC, false);
+        Cgen.emitter.emitLabelDef(label);
+
+        env.removeLocal();
+        return CgenConstants.ACC;
     }
 
     @Override
