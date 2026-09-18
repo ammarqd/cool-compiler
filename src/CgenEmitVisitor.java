@@ -301,6 +301,7 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
         Cgen.emitter.emitFetchInt(CgenConstants.T1, r_e1);
 
         int label = CgenEnv.getFreshLabel();
+        Cgen.emitter.emitLoadBool(CgenConstants.ACC, true);
         Cgen.emitter.emitBleq(CgenConstants.T1, CgenConstants.T2, label);
         Cgen.emitter.emitLoadBool(CgenConstants.ACC, false);
         Cgen.emitter.emitLabelDef(label);
@@ -320,19 +321,24 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
         Cgen.emitter.emitFetchInt(CgenConstants.T1, r_e1);
 
         int label = CgenEnv.getFreshLabel();
+        Cgen.emitter.emitLoadBool(CgenConstants.ACC, true);
         Cgen.emitter.emitBlt(CgenConstants.T1, CgenConstants.T2, label);
         Cgen.emitter.emitLoadBool(CgenConstants.ACC, false);
         Cgen.emitter.emitLabelDef(label);
 
         env.removeLocal();
-        Cgen.emitter.emitMove(target, CgenConstants.ACC);
-        return target;
+        return CgenConstants.ACC;
     }
 
     @Override
     public String visit(NegNode node, String target) {
-        /* TODO */
-        return null;
+        forceDest(node.getE1(), CgenConstants.ACC);
+        Cgen.emitter.emitCopy();
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, CgenConstants.ACC);
+        Cgen.emitter.emitNeg(CgenConstants.T1, CgenConstants.T1);
+        Cgen.emitter.emitStoreInt(CgenConstants.T1, CgenConstants.ACC);
+
+        return CgenConstants.ACC;
     }
 
     @Override
