@@ -176,15 +176,39 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
 
     @Override
     public String visit(CondNode node, String target) {
-        /* TODO */
+        int false_label = CgenEnv.getFreshLabel();
+        int end_label = CgenEnv.getFreshLabel();
+
+        forceDest(node.getCond(), CgenConstants.ACC);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, CgenConstants.ACC);
+        Cgen.emitter.emitBeqz(CgenConstants.T1, false_label);
+
+        forceDest(node.getThenExpr(), CgenConstants.ACC);
+        Cgen.emitter.emitBranch(end_label);
+
+        Cgen.emitter.emitLabelDef(false_label);
+        forceDest(node.getElseExpr(), CgenConstants.ACC);
+
+        Cgen.emitter.emitLabelDef(end_label);
         return CgenConstants.ACC;
     }
 
     @Override
     public String visit(LoopNode node, String target) {
         int loop_label = CgenEnv.getFreshLabel();
-        /* TODO */
-        return CgenConstants.ACC;
+        int end_label = CgenEnv.getFreshLabel();
+
+        Cgen.emitter.emitLabelDef(loop_label);
+
+        forceDest(node.getCond(), CgenConstants.ACC);
+        Cgen.emitter.emitFetchInt(CgenConstants.T1, CgenConstants.ACC);
+        Cgen.emitter.emitBeqz(CgenConstants.T1, end_label);
+
+        forceDest(node.getBody(), CgenConstants.ACC);
+        Cgen.emitter.emitBranch(loop_label);
+
+        Cgen.emitter.emitLabelDef(end_label);
+        return CgenConstants.ZERO;
     }
 
     @Override
