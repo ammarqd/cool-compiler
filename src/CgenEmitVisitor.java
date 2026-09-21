@@ -191,8 +191,11 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
 
     @Override
     public String visit(BlockNode node, String target) {
-        /* TODO */
-        return null;
+        String result = target;
+        for (ExpressionNode e : node.getExprs()) {
+            result = e.accept(this, target);
+        }
+        return result;
     }
 
     @Override
@@ -261,14 +264,14 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
 
     @Override
     public String visit(BoolConstNode node, String target) {
-        /* TODO */
-        return null;
+        Cgen.emitter.emitLoadBool(target,node.getVal());
+        return target;
     }
 
     @Override
     public String visit(StringConstNode node, String target) {
-        /* TODO */
-        return null;
+        Cgen.emitter.emitLoadString(target,node.getVal());
+        return target;
     }
 
     @Override
