@@ -1,3 +1,4 @@
+import ast.Symbol;
 
 /**
  * This class aggregates all kinds of support routines and constants
@@ -137,7 +138,7 @@ final class CgenConstants {
 
     // The following temporary name will not conflict with any
     // user-defined names.
-    final static String TEMP1 = "_1";
+    final static Symbol TEMP1 = StringTable.idtable.addString("_1");;
 
     // For function prologues and epilogues: how many registers/stack slots
     // do we need?
