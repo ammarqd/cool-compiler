@@ -57,7 +57,23 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
 
     @Override
     public String visit(StaticDispatchNode node, String target) {
-        /* TODO */
+        Symbol classname = node.getType_name();
+        CgenNode c = Cgen.classTable.get(classname);
+        Cgen.MethodInfo minfo = c.env.methods.lookup(node.getName());
+        for (ExpressionNode e : node.getActuals()) {
+            String r_actual = e.accept(this, CgenConstants.ACC);
+            Cgen.emitter.emitPush(r_actual);
+        }
+        forceDest(node.getExpr(), CgenConstants.ACC);
+        int lab = CgenEnv.getFreshLabel();
+        Cgen.emitter.emitBne(CgenConstants.ACC,CgenConstants.ZERO,lab);
+        Cgen.emitter.emitLoadString(CgenConstants.ACC, env.getFilename());
+        Cgen.emitter.emitLoadImm(CgenConstants.T1, node.getLineNumber());
+        Cgen.emitter.emitDispatchAbort();
+        Cgen.emitter.emitLabelDef(lab);
+        Cgen.emitter.emitLoadAddress(CgenConstants.T1, classname + CgenConstants.DISPTAB_SUFFIX);
+        Cgen.emitter.emitLoad(CgenConstants.T1, minfo.getOffset(), CgenConstants.T1);
+        Cgen.emitter.emitJalr(CgenConstants.T1);
         return CgenConstants.ACC;
     }
 
