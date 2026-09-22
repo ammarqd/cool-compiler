@@ -186,7 +186,29 @@ public class CgenEmitVisitor extends CgenVisitor<String, String>{
 
     @Override
     public String visit(NewNode node, String target) {
-        /* TODO */
+        Symbol classname = node.getType_name();
+        if (classname == TreeConstants.SELF_TYPE) {
+            Cgen.emitter.emitLoad(CgenConstants.T1, CgenConstants.TAG_OFFSET, CgenConstants.SELF);
+            Cgen.emitter.emitSll(CgenConstants.T1, CgenConstants.T1, 3);
+            Cgen.emitter.emitLoadAddress(CgenConstants.T2, CgenConstants.CLASSOBJTAB);
+            Cgen.emitter.emitAdd(CgenConstants.T2, CgenConstants.T2, CgenConstants.T1);
+
+            env.addLocal(CgenConstants.OBJTAB_ENTRY);
+            env.vars.lookup(CgenConstants.OBJTAB_ENTRY).emitUpdate(CgenConstants.T2);
+
+            Cgen.emitter.emitLoad(CgenConstants.ACC, 0, CgenConstants.T2);
+            Cgen.emitter.emitCopy();
+
+            String r_entry = env.vars.lookup(CgenConstants.OBJTAB_ENTRY).emitRef(CgenConstants.T1);
+            Cgen.emitter.emitLoad(CgenConstants.T1, 1, r_entry);
+            Cgen.emitter.emitJalr(CgenConstants.T1);
+
+            env.removeLocal();
+        } else {
+            Cgen.emitter.emitLoadAddress(CgenConstants.ACC, classname + CgenConstants.PROTOBJ_SUFFIX);
+            Cgen.emitter.emitCopy();
+            Cgen.emitter.emitInit(classname);
+        }
         return CgenConstants.ACC;
     }
 

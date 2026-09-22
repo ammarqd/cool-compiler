@@ -139,6 +139,7 @@ final class CgenConstants {
     // The following temporary name will not conflict with any
     // user-defined names.
     final static Symbol TEMP1 = StringTable.idtable.addString("_1");;
+    final static Symbol OBJTAB_ENTRY = StringTable.idtable.addString("_objtab_entry");
 
     // For function prologues and epilogues: how many registers/stack slots
     // do we need?
