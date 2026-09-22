@@ -63,7 +63,9 @@ public class CgenCalcTemps extends BaseVisitor<Void, Void> {
 
     @Override
     public Void visit(BranchNode node, Void data) {
-        /* TODO */
+        inc();
+        node.getExpr().accept(this, data);
+        dec();
         return null;
     }
 
