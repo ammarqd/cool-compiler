@@ -1,29 +1,56 @@
 # cool-compiler
-A Compiler for the Cool programming language, written in Java and utilising ANTLR to define the grammar.
+A complete compiler for the Cool programming language, coded in Java and using ANTLR4 for parse tree generation.
 
-- [x] Lexer (63/63 test cases passed!)
-- [x] Parser (71/71 test cases passed!)
-- [x] Semantic Analysis (74/74 test cases passed!)
-- [ ] Code Generation (WIP codegen branch)
+- [x] Lexer (63/63 test cases passed)
+- [x] Parser (71/71 test cases passed)
+- [x] Semantic Analysis (74/74 test cases passed)
+- [x] Code Generation (67/67 test cases passed)
 
 <br>
 
-To build and test the frontend pass/fail cases, within the ```assignments/pa1``` folder: 
+To test the pass/fail cases, in the relevant folder (pa1, pa2, pa3) :
 
+```assignments/pa1:``` 
 ```
 buildme frontend
 testme lexer parser
 ```
-To test just the lexer, you can simply run ```testme lexer```
+
+and to compare the frontend grammar output with the reference:
+
+```
+./myfrontend foo.cl
+./reffrontend foo.cl
+```
 
 <br>
 
-To compare the frontend grammar output with the reference, within the ```assignments/pa1``` folder: 
+```assignments/pa2:``` 
 ```
-buildme frontend
-./myfrontend good.cl
-./reffrontend good.cl
+buildme semant
+testme semant
 ```
-- ```good.cl``` can be replaced with any Cool programming file to test various outputs  
-- the ```-x``` tag can be added to the test commands like so, ```./myfrontend -x good.cl``` or ```./reffrontend -x good.cl``` to simply test the lexer grammar (default is to print the abstract syntax tree from the parser). 
 
+and to compare the semantic analysis output with the reference
+
+```
+./mybackend foo.cl
+./refbackend foo.cl
+```
+
+<br>
+
+```assignments/pa3:``` 
+```
+buildme backend
+testme backend
+```
+
+and to compare the generated MIPS assembly with the reference:
+
+```
+./mybackend foo.cl
+./refbackend foo.cl
+```
+
+then run the command ```coolspim -file foo.s``` on the generated `foo.s` file
