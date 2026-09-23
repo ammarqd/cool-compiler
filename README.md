@@ -42,8 +42,8 @@ and to compare the semantic analysis output with the reference
 
 ```assignments/pa3:``` 
 ```
-buildme backend
-testme backend
+buildme cgen
+testme cgen
 ```
 
 and to compare the generated MIPS assembly with the reference:
