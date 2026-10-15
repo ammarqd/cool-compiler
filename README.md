@@ -34,8 +34,8 @@ testme semant
 and to compare the semantic analysis output with the reference
 
 ```
-./mybackend foo.cl
-./refbackend foo.cl
+./mysemant foo.cl
+./refsemant foo.cl
 ```
 
 <br>
